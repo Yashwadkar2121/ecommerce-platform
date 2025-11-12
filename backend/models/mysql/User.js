@@ -1,6 +1,15 @@
 const { DataTypes } = require("sequelize");
-const { sequelize } = require("../../config/database");
+const { getSequelize } = require("../../config/database");
 const bcrypt = require("bcryptjs");
+
+// Get sequelize instance
+const sequelize = getSequelize();
+
+if (!sequelize) {
+  throw new Error(
+    "❌ Sequelize not initialized! Make sure connectMySQL() is called before loading models."
+  );
+}
 
 const User = sequelize.define(
   "User",

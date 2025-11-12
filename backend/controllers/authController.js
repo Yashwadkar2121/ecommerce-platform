@@ -1,8 +1,8 @@
-const jwt = require("jsonwebtoken");
-const { User } = require("../models/mysql/User");
-const { Session } = require("../models/mongodb/Session");
+const User = require("../models/mysql/User");
+const Session = require("../models/mongodb/Session");
 const { generateTokens, verifyRefreshToken } = require("../utils/jwt");
 
+// 🧩 Register User
 const register = async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
@@ -12,19 +12,13 @@ const register = async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    const user = await User.create({
-      email,
-      password,
-      firstName,
-      lastName,
-    });
-
+    const user = await User.create({ email, password, firstName, lastName });
     const tokens = generateTokens(user.id, user.role);
 
     await Session.create({
       userId: user.id,
       token: tokens.refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       userAgent: req.get("User-Agent"),
       ipAddress: req.ip,
     });
@@ -41,10 +35,12 @@ const register = async (req, res) => {
       tokens,
     });
   } catch (error) {
+    console.error("Registration Error:", error.message);
     res.status(500).json({ error: "Registration failed" });
   }
 };
 
+// 🧩 Login User
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -76,17 +72,17 @@ const login = async (req, res) => {
       tokens,
     });
   } catch (error) {
+    console.error("Login Error:", error.message);
     res.status(500).json({ error: "Login failed" });
   }
 };
 
+// ♻️ Refresh Token
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-
-    if (!refreshToken) {
+    if (!refreshToken)
       return res.status(401).json({ error: "Refresh token required" });
-    }
 
     const decoded = await verifyRefreshToken(refreshToken);
     const session = await Session.findOne({
@@ -94,38 +90,58 @@ const refreshToken = async (req, res) => {
       token: refreshToken,
     });
 
-    if (!session) {
+    if (!session)
       return res.status(401).json({ error: "Invalid refresh token" });
-    }
 
     const tokens = generateTokens(decoded.userId, decoded.role);
-
-    // Update session with new refresh token
     session.token = tokens.refreshToken;
     session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await session.save();
 
     res.json({ tokens });
   } catch (error) {
+    console.error("Refresh Token Error:", error.message);
     res.status(401).json({ error: "Invalid refresh token" });
   }
 };
 
+// 🚪 Logout User
 const logout = async (req, res) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
     const { refreshToken } = req.body;
 
-    await Session.deleteMany({
-      $or: [
-        { userId: req.user.userId, token: refreshToken },
-        { userId: req.user.userId, token: token },
-      ],
+    if (!req.user?.id)
+      return res.status(401).json({ error: "Unauthorized user" });
+    if (!refreshToken)
+      return res.status(400).json({ error: "Refresh token required" });
+
+    // Check if session exists
+    const session = await Session.findOne({
+      userId: req.user.id,
+      token: refreshToken,
     });
 
-    res.json({ message: "Logged out successfully" });
+    if (!session) {
+      return res
+        .status(404)
+        .json({ error: "Session not found. Please log in again." });
+    }
+
+    // Check if session is expired
+    if (session.expiresAt < new Date()) {
+      await Session.deleteOne({ _id: session._id }); // clean up expired session
+      return res
+        .status(401)
+        .json({ error: "Session expired. Please log in again." });
+    }
+
+    // Delete session (logout)
+    await Session.deleteOne({ _id: session._id });
+
+    return res.json({ message: "✅ Logged out successfully" });
   } catch (error) {
-    res.status(500).json({ error: "Logout failed" });
+    console.error("Logout Error:", error.message);
+    return res.status(500).json({ error: "Logout failed" });
   }
 };
 

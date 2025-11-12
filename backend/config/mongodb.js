@@ -16,7 +16,7 @@ const connectMongoDB = async () => {
     }
   } catch (error) {
     if (uri === atlasURI && localURI) {
-      console.warn("⚠️ MongoDB (Atlas) connection failed:", error.message);
+      console.warn("⚠️  MongoDB (Atlas) connection failed:", error.message);
       console.log("🔄 Trying local MongoDB...");
       try {
         await mongoose.connect(localURI);

@@ -1,6 +1,8 @@
 const { Sequelize } = require("sequelize");
 const mysql = require("mysql2/promise");
 
+let sequelize; // Global variable
+
 // Function to create Sequelize instance
 const createSequelizeInstance = (config) =>
   new Sequelize(config.name, config.user, config.password, {
@@ -11,15 +13,14 @@ const createSequelizeInstance = (config) =>
       ? {
           ssl: {
             require: true,
-            rejectUnauthorized: false, // Aiven uses self-signed SSL
+            rejectUnauthorized: false,
           },
         }
       : {},
     logging: false,
-    pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
   });
 
-// Function to create database if not exists (local only)
+// Create database if not exists (local only)
 const createDatabaseIfNotExists = async (config) => {
   const connection = await mysql.createConnection({
     host: config.host,
@@ -31,9 +32,8 @@ const createDatabaseIfNotExists = async (config) => {
   await connection.end();
 };
 
-// Main connection function
+// Connect to MySQL
 const connectMySQL = async () => {
-  // 🌐 Aiven Cloud MySQL configuration
   const aivenConfig = {
     name: process.env.DB_NAME,
     user: process.env.DB_USER,
@@ -43,7 +43,6 @@ const connectMySQL = async () => {
     ssl: true,
   };
 
-  // 💻 Local MySQL configuration
   const localConfig = {
     name: process.env.LOCAL_DB_NAME,
     user: process.env.LOCAL_DB_USER,
@@ -53,29 +52,23 @@ const connectMySQL = async () => {
     ssl: false,
   };
 
-  let sequelize = createSequelizeInstance(aivenConfig);
-
   try {
-    // Aiven connection (no DB creation)
+    sequelize = createSequelizeInstance(aivenConfig);
     await sequelize.authenticate();
     console.log("✅ MySQL (Aiven) connected successfully");
   } catch (error) {
-    console.warn("⚠️ Aiven connection failed:", error.message);
+    console.warn("⚠️  Aiven connection failed:", error.message);
     console.log("🔄 Trying local MySQL...");
 
+    await createDatabaseIfNotExists(localConfig);
     sequelize = createSequelizeInstance(localConfig);
-    try {
-      // Only create DB locally
-      await createDatabaseIfNotExists(localConfig);
-      await sequelize.authenticate();
-      console.log("✅ MySQL (Local) connected successfully");
-    } catch (err) {
-      console.error("❌ Local MySQL connection error:", err.message);
-      process.exit(1);
-    }
+    await sequelize.authenticate();
+    console.log("✅ MySQL (Local) connected successfully");
   }
 
   return sequelize;
 };
 
-module.exports = { connectMySQL };
+const getSequelize = () => sequelize;
+
+module.exports = { connectMySQL, getSequelize };
