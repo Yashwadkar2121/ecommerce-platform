@@ -17,11 +17,13 @@ const startServer = async () => {
 
     // 2️⃣ Now that MySQL is connected, safely import routes
     const authRoutes = require("./routes/auth");
+    const orderRoutes = require("./routes/orders");
     app.use("/api/auth", authRoutes);
+    app.use("/api/orders", orderRoutes);
 
     // 3️⃣ Optionally sync MySQL models
     const sequelize = getSequelize();
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
 
     // 4️⃣ Connect MongoDB
     await connectMongoDB();
