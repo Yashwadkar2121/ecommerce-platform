@@ -12,23 +12,33 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    // 1️⃣ Connect MySQL first
+    // 1️⃣ Connect MySQL
     await connectMySQL();
 
-    // 2️⃣ Now that MySQL is connected, safely import routes
+    // 2️⃣ Connect MongoDB
+    await connectMongoDB();
+
+    // ⭐ Connect Redis
+    const { connectRedis } = require("./utils/redis");
+    await connectRedis();
+    console.log("✅ Redis connected successfully");
+
+    // 5️⃣ Import routes
     const authRoutes = require("./routes/auth");
     const orderRoutes = require("./routes/orders");
+    const paymentRoutes = require("./routes/payments");
+    const productRoutes = require("./routes/products");
+
     app.use("/api/auth", authRoutes);
     app.use("/api/orders", orderRoutes);
+    app.use("/api/payments", paymentRoutes);
+    app.use("/api/products", productRoutes);
 
-    // 3️⃣ Optionally sync MySQL models
+    // 6️⃣ Sync MySQL
     const sequelize = getSequelize();
     await sequelize.sync();
 
-    // 4️⃣ Connect MongoDB
-    await connectMongoDB();
-
-    // 5️⃣ Start server
+    // 7️⃣ Start server
     app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
     });
