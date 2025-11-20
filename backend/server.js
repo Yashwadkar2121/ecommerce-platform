@@ -28,11 +28,13 @@ const startServer = async () => {
     const orderRoutes = require("./routes/orders");
     const paymentRoutes = require("./routes/payments");
     const productRoutes = require("./routes/products");
+    const cartRoutes = require("./routes/cart");
 
     app.use("/api/auth", authRoutes);
     app.use("/api/orders", orderRoutes);
     app.use("/api/payments", paymentRoutes);
     app.use("/api/products", productRoutes);
+    app.use("/api/cart", cartRoutes);
 
     // 6️⃣ Sync MySQL
     const sequelize = getSequelize();
