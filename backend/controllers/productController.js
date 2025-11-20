@@ -3,6 +3,9 @@ const Review = require("../models/mongodb/Review");
 const { paginate } = require("../utils/helpers");
 const { client } = require("../utils/redis");
 
+/**
+ * Get all products (Public - only active products)
+ */
 const getProducts = async (req, res) => {
   try {
     const {
@@ -17,7 +20,7 @@ const getProducts = async (req, res) => {
       sortOrder = "desc",
     } = req.query;
 
-    // Build filter object
+    // Build filter object - ONLY active products for public
     const filter = { isActive: true };
 
     if (category) filter.category = category;
@@ -62,28 +65,14 @@ const getProducts = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Get products error:", error);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 };
 
-const getProductCategories = async (req, res) => {
-  try {
-    const categories = await Product.distinct("category", { isActive: true });
-    res.json({ categories });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch categories" });
-  }
-};
-
-const getProductBrands = async (req, res) => {
-  try {
-    const brands = await Product.distinct("brand", { isActive: true });
-    res.json({ brands });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch brands" });
-  }
-};
-// There show inactive products as well
+/**
+ * Get product by ID (Public - can see inactive products if accessed directly)
+ */
 const getProductById = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -108,87 +97,56 @@ const getProductById = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getProductById:", error); // Detailed logging
-    res
-      .status(500)
-      .json({ error: "Failed to fetch product", details: error.message });
+    console.error("Get product by ID error:", error);
+    res.status(500).json({ error: "Failed to fetch product" });
   }
 };
 
-const createProduct = async (req, res) => {
+/**
+ * Get all product categories (Public)
+ */
+const getProductCategories = async (req, res) => {
   try {
-    const productData = req.body;
-
-    const product = new Product(productData);
-    await product.save();
-
-    await client.del("cache:/api/products*");
-
-    res.status(201).json({
-      message: "Product created successfully",
-      product,
-    });
+    const categories = await Product.distinct("category", { isActive: true });
+    res.json({ categories });
   } catch (error) {
-    console.error("Create Product Error:", error);
-    res.status(400).json({ error: "Failed to create product" });
+    console.error("Get categories error:", error);
+    res.status(500).json({ error: "Failed to fetch categories" });
   }
 };
 
-const updateProduct = async (req, res) => {
+/**
+ * Get all product brands (Public)
+ */
+const getProductBrands = async (req, res) => {
   try {
-    const { productId } = req.params;
-    const updateData = req.body;
-
-    const product = await Product.findByIdAndUpdate(productId, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
-    // Clear cache
-    await client.del("cache:/api/products*");
-    await client.del(`cache:/api/products/${productId}`);
-
-    res.json({
-      message: "Product updated successfully",
-      product,
-    });
+    const brands = await Product.distinct("brand", { isActive: true });
+    res.json({ brands });
   } catch (error) {
-    res.status(400).json({ error: "Failed to update product" });
-  }
-};
-// Soft Delete Implementation
-const deleteProduct = async (req, res) => {
-  try {
-    const { productId } = req.params;
-
-    const product = await Product.findByIdAndUpdate(
-      productId,
-      { isActive: false },
-      { new: true }
-    );
-
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
-    // Clear cache
-    await client.del("cache:/api/products*");
-
-    res.json({ message: "Product deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete product" });
+    console.error("Get brands error:", error);
+    res.status(500).json({ error: "Failed to fetch brands" });
   }
 };
 
+/**
+ * Add review to product (Authenticated users only)
+ */
 const addProductReview = async (req, res) => {
   try {
     const { productId } = req.params;
     const { rating, title, comment } = req.body;
     const userId = req.user.id;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating must be between 1 and 5" });
+    }
+
+    // Check if product exists and is active
+    const product = await Product.findOne({ _id: productId, isActive: true });
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
 
     // Check if user already reviewed this product
     const existingReview = await Review.findOne({ productId, userId });
@@ -214,26 +172,28 @@ const addProductReview = async (req, res) => {
       reviews.reduce((sum, rev) => sum + rev.rating, 0) / reviews.length;
 
     await Product.findByIdAndUpdate(productId, {
-      "ratings.average": averageRating,
+      "ratings.average": parseFloat(averageRating.toFixed(1)),
       "ratings.count": reviews.length,
     });
+
+    // Clear product cache
+    await client.del(`cache:/api/products/${productId}`);
 
     res.status(201).json({
       message: "Review added successfully",
       review,
     });
   } catch (error) {
+    console.error("Add review error:", error);
     res.status(400).json({ error: "Failed to add review" });
   }
 };
 
+
 module.exports = {
   getProducts,
+  getProductById,
   getProductCategories,
   getProductBrands,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
   addProductReview,
 };

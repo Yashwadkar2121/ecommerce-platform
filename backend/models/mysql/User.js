@@ -2,7 +2,6 @@ const { DataTypes } = require("sequelize");
 const { getSequelize } = require("../../config/database");
 const bcrypt = require("bcryptjs");
 
-// Get sequelize instance
 const sequelize = getSequelize();
 
 if (!sequelize) {
@@ -65,5 +64,10 @@ const User = sequelize.define(
 User.prototype.validatePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
+
+// ✅ Import Order model and define association
+const Order = require("./Order");
+User.hasMany(Order, { foreignKey: "userId" }); // ✅ ADD THIS
+Order.belongsTo(User, { foreignKey: "userId" }); // ✅ ADD THIS
 
 module.exports = User;

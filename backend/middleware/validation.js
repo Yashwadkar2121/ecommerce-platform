@@ -20,11 +20,21 @@ const validateRegistration = [
 ];
 
 const validateProduct = [
-  body("name").notEmpty().trim(),
-  body("description").notEmpty().trim(),
-  body("price").isFloat({ min: 0 }),
-  body("category").notEmpty().trim(),
-  body("inventory").isInt({ min: 0 }),
+  body("name").notEmpty().trim().withMessage("Product name is required"),
+  body("description").notEmpty().trim().withMessage("Description is required"),
+  body("price")
+    .isFloat({ min: 0 })
+    .withMessage("Price must be a positive number"),
+  body("category").notEmpty().trim().withMessage("Category is required"),
+  body("brand").notEmpty().trim().withMessage("Brand is required"), // Added brand validation
+  body("inventory")
+    .isInt({ min: 0 })
+    .withMessage("Inventory must be a positive integer"),
+  // Optional fields - no validation needed
+  body("subcategory").optional().trim(),
+  body("images").optional().isArray(),
+  body("attributes").optional().isObject(),
+  body("tags").optional().isArray(),
   handleValidationErrors,
 ];
 
