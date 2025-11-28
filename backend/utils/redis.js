@@ -29,7 +29,6 @@ const cache = (duration) => {
 
       const cachedData = await client.get(key);
       if (cachedData) {
-        // console.log("✅ Serving from cache:", key);
         return res.json(JSON.parse(cachedData));
       }
 

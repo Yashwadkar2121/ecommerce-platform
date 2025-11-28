@@ -15,8 +15,9 @@ const register = async (req, res) => {
     const user = await User.create({ email, password, firstName, lastName });
     const tokens = generateTokens(user.id, user.role);
 
+    // In register and login functions, update Session creation:
     await Session.create({
-      userId: user.id,
+      userId: user.id, // Already a number - no need for toString()
       token: tokens.refreshToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       userAgent: req.get("User-Agent"),
@@ -52,8 +53,9 @@ const login = async (req, res) => {
 
     const tokens = generateTokens(user.id, user.role);
 
+    // In register and login functions, update Session creation:
     await Session.create({
-      userId: user.id,
+      userId: user.id, // Already a number - no need for toString()
       token: tokens.refreshToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       userAgent: req.get("User-Agent"),
@@ -81,26 +83,43 @@ const login = async (req, res) => {
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken)
-      return res.status(401).json({ error: "Refresh token required" });
 
+    if (!refreshToken) {
+      return res.status(401).json({ error: "Refresh token required" });
+    }
+
+    // Verify token
     const decoded = await verifyRefreshToken(refreshToken);
+
+    // 🛠️ FIX: Now we can directly use decoded.id
+    const userId = decoded.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Invalid token payload" });
+    }
+
+    // Find session - Use Number type to match Session schema
     const session = await Session.findOne({
-      userId: decoded.userId,
+      userId: Number(userId),
       token: refreshToken,
     });
 
-    if (!session)
+    if (!session) {
       return res.status(401).json({ error: "Invalid refresh token" });
+    }
 
-    const tokens = generateTokens(decoded.userId, decoded.role);
+    // Generate new tokens
+    const tokens = generateTokens(userId, decoded.role);
+
+    // Update session
     session.token = tokens.refreshToken;
     session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await session.save();
 
     res.json({ tokens });
   } catch (error) {
-    console.error("Refresh Token Error:", error.message);
+    console.error("❌ Refresh Token Error:", error.message);
+    console.error("Error stack:", error.stack);
     res.status(401).json({ error: "Invalid refresh token" });
   }
 };
@@ -110,37 +129,47 @@ const logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
-    if (!req.user?.id)
+    if (!req.user?.id) {
       return res.status(401).json({ error: "Unauthorized user" });
-    if (!refreshToken)
-      return res.status(400).json({ error: "Refresh token required" });
+    }
 
-    // Check if session exists
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token required" });
+    }
+
+    // Check if session exists - FIXED: Use Number type to match schema
     const session = await Session.findOne({
-      userId: req.user.id,
+      userId: Number(req.user.id), // Convert to Number to match schema
       token: refreshToken,
     });
 
     if (!session) {
-      return res
-        .status(404)
-        .json({ error: "Session not found. Please log in again." });
+      // Debug: Check all sessions for this user
+      const userSessions = await Session.find({ userId: Number(req.user.id) });
+
+      return res.status(404).json({
+        error: "Session not found. Please log in again.",
+      });
     }
 
     // Check if session is expired
     if (session.expiresAt < new Date()) {
-      await Session.deleteOne({ _id: session._id }); // clean up expired session
-      return res
-        .status(401)
-        .json({ error: "Session expired. Please log in again." });
+      await Session.deleteOne({ _id: session._id });
+      return res.status(401).json({
+        error: "Session expired. Please log in again.",
+      });
     }
 
     // Delete session (logout)
     await Session.deleteOne({ _id: session._id });
 
-    return res.json({ message: "✅ Logged out successfully" });
+    return res.json({
+      message: "✅ Logged out successfully",
+      sessionDeleted: true,
+    });
   } catch (error) {
-    console.error("Logout Error:", error.message);
+    console.error("❌ Logout Error:", error.message);
+    console.error("Error stack:", error.stack);
     return res.status(500).json({ error: "Logout failed" });
   }
 };

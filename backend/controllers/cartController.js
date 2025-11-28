@@ -239,11 +239,57 @@ const clearCart = async (req, res) => {
     const userId = req.user.userId;
     const cartKey = getCartKey(userId);
 
+    // Get current cart data first
+    const cartData = await client.get(cartKey);
+
+    // Check if cart exists and has items
+    if (!cartData) {
+      return res.status(404).json({
+        success: false,
+        error: "already empty",
+      });
+    }
+
+    const cart = JSON.parse(cartData);
+
+    // Check if cart is already empty
+    if (!cart.items || cart.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Cart is already empty",
+        cart: {
+          items: [],
+          total: 0,
+          itemCount: 0,
+        },
+      });
+    }
+
+    // Store cart info for response before clearing
+    const clearedCartInfo = {
+      items: cart.items,
+      total: cart.total,
+      itemCount: cart.items.length,
+    };
+
+    // Clear the cart
     await client.del(cartKey);
 
-    res.json({ message: "Cart cleared successfully" });
+    res.json({
+      success: true,
+      message: "Cart cleared successfully",
+      clearedItems: clearedCartInfo,
+      cart: {
+        items: [],
+        total: 0,
+        itemCount: 0,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ error: "Failed to clear cart" });
+    res.status(500).json({
+      success: false,
+      error: "Failed to clear cart",
+    });
   }
 };
 

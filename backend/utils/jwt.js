@@ -1,12 +1,16 @@
+// utils/jwt.js - UPDATED VERSION
 const jwt = require("jsonwebtoken");
 
 const generateTokens = (userId, role) => {
-  const accessToken = jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
-    expiresIn: "15m",
-  });
+  // 🚨 CRITICAL FIX: Use 'id' field to match your middleware expectation
+  const accessToken = jwt.sign(
+    { id: userId, role }, // Use 'id' instead of 'userId'
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" }
+  );
 
   const refreshToken = jwt.sign(
-    { id: userId, role },
+    { id: userId, role }, // Use 'id' instead of 'userId'
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: "7d" }
   );
@@ -15,7 +19,8 @@ const generateTokens = (userId, role) => {
 };
 
 const verifyRefreshToken = (token) => {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  return decoded;
 };
 
 module.exports = { generateTokens, verifyRefreshToken };
