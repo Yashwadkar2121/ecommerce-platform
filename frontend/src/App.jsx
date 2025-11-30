@@ -1,11 +1,8 @@
-import "./App.css";
+import React from "react";
+import AppRouter from "./router/AppRouter";
 
 function App() {
-  return (
-    <>
-      <h1 className="text-9xl">Home</h1>
-    </>
-  );
+  return <AppRouter />;
 }
 
 export default App;
