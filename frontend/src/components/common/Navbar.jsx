@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom"; // ADD useNavigate
 import { ShoppingCart, User, Menu, X, Search, LogOut } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { logout } from "../../store/slices/authSlice";
-import { toggleCart } from "../../store/slices/cartSlice";
 import { toggleMobileMenu } from "../../store/slices/uiSlice";
 
 const Navbar = () => {
@@ -15,6 +14,7 @@ const Navbar = () => {
   const { mobileMenuOpen } = useAppSelector((state) => state.ui);
   const dispatch = useAppDispatch();
   const location = useLocation();
+  const navigate = useNavigate(); // ADD THIS
 
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
@@ -27,6 +27,7 @@ const Navbar = () => {
   const confirmLogout = () => {
     dispatch(logout());
     setShowLogoutConfirm(false);
+    navigate("/login", { replace: true });
   };
 
   const cancelLogout = () => {
@@ -36,9 +37,8 @@ const Navbar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/products?search=${encodeURIComponent(
-        searchQuery
-      )}`;
+      // Use navigate instead of window.location for search too
+      navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
     }
   };
 
@@ -100,9 +100,14 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/cart"
-                    className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                    className="relative p-2 text-gray-700 hover:text-primary-600 transition-colors"
                   >
                     <ShoppingCart size={24} />
+                    {itemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {itemCount}
+                      </span>
+                    )}
                   </Link>
                   <Link
                     to="/profile"

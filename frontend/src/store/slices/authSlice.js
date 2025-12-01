@@ -58,7 +58,7 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
-      state.isUserLoaded = false; // ADDED: Reset this flag
+      state.isUserLoaded = true;
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
     },
