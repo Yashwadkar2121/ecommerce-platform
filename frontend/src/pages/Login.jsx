@@ -14,15 +14,17 @@ const Login = () => {
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, isAuthenticated } = useAppSelector(
+  const { isLoading, error, isAuthenticated, isUserLoaded } = useAppSelector(
+    // UPDATED: Add isUserLoaded
     (state) => state.auth
   );
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // Only redirect if user is loaded and authenticated
+    if (isUserLoaded && isAuthenticated) {
       navigate("/");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, isUserLoaded]);
 
   useEffect(() => {
     dispatch(clearError());
@@ -39,6 +41,15 @@ const Login = () => {
     e.preventDefault();
     dispatch(loginUser(formData));
   };
+
+  // ADDED: Show loading spinner while initial user data is loading
+  if (isLoading && !isUserLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

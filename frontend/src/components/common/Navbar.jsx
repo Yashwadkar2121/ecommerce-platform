@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, X, Search, LogOut } from "lucide-react";
@@ -10,7 +10,7 @@ import { toggleMobileMenu } from "../../store/slices/uiSlice";
 const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
   const { itemCount } = useAppSelector((state) => state.cart);
   const { mobileMenuOpen } = useAppSelector((state) => state.ui);
   const dispatch = useAppDispatch();
@@ -98,17 +98,12 @@ const Navbar = () => {
             <div className="hidden md:flex items-center space-x-4">
               {isAuthenticated ? (
                 <>
-                  <button
-                    onClick={() => dispatch(toggleCart())}
-                    className="relative p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  <Link
+                    to="/cart"
+                    className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
                   >
                     <ShoppingCart size={24} />
-                    {itemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {itemCount}
-                      </span>
-                    )}
-                  </button>
+                  </Link>
                   <Link
                     to="/profile"
                     className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
