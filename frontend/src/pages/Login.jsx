@@ -1,9 +1,23 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { loginUser, clearError } from "../store/slices/authSlice";
+
+// Validation rules
+const validationRules = {
+  email: {
+    required: true,
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    message: "Please enter a valid email address",
+  },
+  password: {
+    required: true,
+    minLength: 6,
+    message: "Password must be at least 6 characters",
+  },
+};
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -11,11 +25,19 @@ const Login = () => {
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [formErrors, setFormErrors] = useState({
+    email: "",
+    password: "",
+  });
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isLoading, error, isAuthenticated, isUserLoaded } = useAppSelector(
-    // UPDATED: Add isUserLoaded
     (state) => state.auth
   );
 
@@ -30,16 +52,135 @@ const Login = () => {
     dispatch(clearError());
   }, [dispatch]);
 
+  // Validate a single field
+  const validateField = (name, value) => {
+    const rules = validationRules[name];
+    if (!rules) return "";
+
+    if (rules.required && !value.trim()) {
+      return "This field is required";
+    }
+
+    if (rules.minLength && value.length < rules.minLength) {
+      return `Minimum ${rules.minLength} characters required`;
+    }
+
+    if (rules.pattern && !rules.pattern.test(value)) {
+      return rules.message;
+    }
+
+    return "";
+  };
+
+  // Validate all fields
+  const validateAll = () => {
+    const errors = {};
+    let isValid = true;
+
+    Object.keys(formData).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      errors[field] = error;
+      if (error) isValid = false;
+    });
+
+    setFormErrors(errors);
+    return isValid;
+  };
+
+  // Handle field change
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
+    });
+
+    // Clear server error when user types
+    if (error) {
+      dispatch(clearError());
+    }
+
+    // Validate field if it's been touched or form was submitted
+    if (touched[name] || formSubmitted) {
+      setFormErrors({
+        ...formErrors,
+        [name]: validateField(name, value),
+      });
+    }
+  };
+
+  // Handle blur event
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched({
+      ...touched,
+      [name]: true,
+    });
+
+    // Validate on blur
+    setFormErrors({
+      ...formErrors,
+      [name]: validateField(name, formData[name]),
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setFormSubmitted(true);
+
+    // Mark all fields as touched
+    const allTouched = Object.keys(touched).reduce(
+      (acc, field) => ({
+        ...acc,
+        [field]: true,
+      }),
+      {}
+    );
+    setTouched(allTouched);
+
+    if (!validateAll()) {
+      // Focus on first error field
+      const firstErrorField = Object.keys(formErrors).find(
+        (field) => formErrors[field]
+      );
+      if (firstErrorField) {
+        document.getElementById(firstErrorField)?.focus();
+      }
+      return;
+    }
+
     dispatch(loginUser(formData));
+  };
+
+  // Helper to check if field has error
+  const hasError = (fieldName) => touched[fieldName] && formErrors[fieldName];
+
+  // Helper to get input classes based on field state
+  const getInputClasses = (fieldName) => {
+    const baseClasses =
+      "w-full px-3 py-2 pl-11 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-1 text-sm transition-colors ";
+
+    if (hasError(fieldName)) {
+      return (
+        baseClasses + "border-red-300 focus:border-red-500 focus:ring-red-200"
+      );
+    }
+
+    if (
+      touched[fieldName] &&
+      !formErrors[fieldName] &&
+      formData[fieldName].trim()
+    ) {
+      return (
+        baseClasses +
+        "border-green-300 focus:border-primary-500 focus:ring-primary-200"
+      );
+    }
+
+    return (
+      baseClasses +
+      "border-gray-300 focus:border-primary-500 focus:ring-primary-200"
+    );
   };
 
   // ADDED: Show loading spinner while initial user data is loading
@@ -81,7 +222,7 @@ const Login = () => {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
                 {error}
@@ -95,7 +236,7 @@ const Login = () => {
               >
                 Email address
               </label>
-              <div className="relative">
+              <div className="mt-1 relative">
                 <input
                   id="email"
                   name="email"
@@ -104,14 +245,30 @@ const Login = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 sm:py-2.5 pl-11 sm:pl-12 md:pl-14 pr-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors"
+                  onBlur={handleBlur}
+                  className={getInputClasses("email")}
                   placeholder="Enter your email"
+                  aria-invalid={hasError("email")}
+                  aria-describedby={
+                    hasError("email") ? "email-error" : undefined
+                  }
                 />
                 <Mail
-                  className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={16}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={18}
                 />
+                {hasError("email") && (
+                  <AlertCircle
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                    size={18}
+                  />
+                )}
               </div>
+              {hasError("email") && (
+                <p id="email-error" className="mt-1 text-sm text-red-600">
+                  {formErrors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -130,8 +287,13 @@ const Login = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 pl-10 pr-10 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  onBlur={handleBlur}
+                  className={getInputClasses("password")}
                   placeholder="Enter your password"
+                  aria-invalid={hasError("password")}
+                  aria-describedby={
+                    hasError("password") ? "password-error" : undefined
+                  }
                 />
                 <Lock
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -139,37 +301,34 @@ const Login = () => {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500"
+                  className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+                {hasError("password") && (
+                  <AlertCircle
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                    size={18}
+                  />
+                )}
               </div>
+              {hasError("password") && (
+                <p id="password-error" className="mt-1 text-sm text-red-600">
+                  {formErrors.password}
+                </p>
+              )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 block text-sm text-gray-900"
-                >
-                  Remember me
-                </label>
-              </div>
-
+            <div className="flex items-center justify-end">
               <div className="text-sm">
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="font-medium text-primary-600 hover:text-primary-500"
                 >
                   Forgot your password?
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -177,36 +336,16 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-2"
               >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 ) : (
-                  "Submit"
+                  "Sign In"
                 )}
               </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Demo Credentials
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 text-center">
-              <div className="text-xs text-gray-500 space-y-1">
-                <p>Email: demo@example.com</p>
-                <p>Password: demo123</p>
-              </div>
-            </div>
-          </div>
         </div>
       </motion.div>
     </div>
