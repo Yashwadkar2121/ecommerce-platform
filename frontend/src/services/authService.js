@@ -20,4 +20,17 @@ export const authService = {
   refreshToken: (refreshToken) => {
     return api.post("/auth/refresh-token", { refreshToken });
   },
+
+  // Forgot Password Flow
+  forgotPassword: (email) => {
+    return api.post("/auth/forgot-password", { email });
+  },
+
+  verifyOTP: (email, otp) => {
+    return api.post("/auth/verify-otp", { email, otp });
+  },
+
+  resetPassword: (resetToken, newPassword) => {
+    return api.post("/auth/reset-password", { resetToken, newPassword });
+  },
 };
