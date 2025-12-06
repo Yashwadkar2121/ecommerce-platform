@@ -17,11 +17,18 @@ export const authService = {
     return api.get("/auth/profile");
   },
 
+  updateProfile: (profileData) => {
+    return api.put("/auth/profile", profileData);
+  },
+
+  changePassword: (currentPassword, newPassword) => {
+    return api.put("/auth/change-password", { currentPassword, newPassword });
+  },
+
   refreshToken: (refreshToken) => {
     return api.post("/auth/refresh-token", { refreshToken });
   },
 
-  // Forgot Password Flow
   forgotPassword: (email) => {
     return api.post("/auth/forgot-password", { email });
   },

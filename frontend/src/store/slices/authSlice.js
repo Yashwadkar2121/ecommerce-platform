@@ -43,7 +43,40 @@ export const loadUser = createAsyncThunk(
   }
 );
 
-// ADDED: Forgot Password - Send OTP
+// Update Profile thunk
+export const updateProfile = createAsyncThunk(
+  "auth/updateProfile",
+  async (profileData, { rejectWithValue }) => {
+    try {
+      const response = await authService.updateProfile(profileData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to update profile"
+      );
+    }
+  }
+);
+
+// Change Password thunk
+export const changePassword = createAsyncThunk(
+  "auth/changePassword",
+  async ({ currentPassword, newPassword }, { rejectWithValue }) => {
+    try {
+      const response = await authService.changePassword(
+        currentPassword,
+        newPassword
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to change password"
+      );
+    }
+  }
+);
+
+// Forgot Password - Send OTP
 export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (email, { rejectWithValue }) => {
@@ -58,7 +91,7 @@ export const forgotPassword = createAsyncThunk(
   }
 );
 
-// ADDED: Verify OTP
+// Verify OTP
 export const verifyOTP = createAsyncThunk(
   "auth/verifyOTP",
   async ({ email, otp }, { rejectWithValue }) => {
@@ -71,7 +104,7 @@ export const verifyOTP = createAsyncThunk(
   }
 );
 
-// ADDED: Reset Password
+// Reset Password
 export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
   async ({ resetToken, newPassword }, { rejectWithValue }) => {
@@ -91,14 +124,16 @@ const authSlice = createSlice({
   initialState: {
     user: null,
     token: localStorage.getItem("token"),
-    resetToken: null, // ADDED: Store reset token temporarily
+    resetToken: null,
     isAuthenticated: !!localStorage.getItem("token"),
     isLoading: false,
     error: null,
     isUserLoaded: false,
-    forgotPasswordSuccess: false, // ADDED: Track forgot password success
-    verifyOTPSuccess: false, // ADDED: Track OTP verification success
-    resetPasswordSuccess: false, // ADDED: Track reset password success
+    forgotPasswordSuccess: false,
+    verifyOTPSuccess: false,
+    resetPasswordSuccess: false,
+    updateSuccess: false,
+    changePasswordSuccess: false,
   },
   reducers: {
     logout: (state) => {
@@ -113,10 +148,11 @@ const authSlice = createSlice({
       state.error = null;
     },
     clearSuccessFlags: (state) => {
-      // ADDED: Clear success flags when needed
       state.forgotPasswordSuccess = false;
       state.verifyOTPSuccess = false;
       state.resetPasswordSuccess = false;
+      state.updateSuccess = false;
+      state.changePasswordSuccess = false;
       state.resetToken = null;
     },
     setCredentials: (state, action) => {
@@ -125,6 +161,11 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       localStorage.setItem("token", action.payload.tokens.accessToken);
       localStorage.setItem("refreshToken", action.payload.tokens.refreshToken);
+    },
+    updateUserProfile: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
     },
   },
   extraReducers: (builder) => {
@@ -195,7 +236,42 @@ const authSlice = createSlice({
         state.isUserLoaded = true;
       })
 
-      // ADDED: Forgot Password cases
+      // Update Profile cases
+      .addCase(updateProfile.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.updateSuccess = false;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.updateSuccess = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        state.updateSuccess = false;
+      })
+
+      // Change Password cases
+      .addCase(changePassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.changePasswordSuccess = false;
+      })
+      .addCase(changePassword.fulfilled, (state) => {
+        state.isLoading = false;
+        state.changePasswordSuccess = true;
+        state.error = null;
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        state.changePasswordSuccess = false;
+      })
+
+      // Forgot Password cases
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -211,7 +287,7 @@ const authSlice = createSlice({
         state.forgotPasswordSuccess = false;
       })
 
-      // ADDED: Verify OTP cases
+      // Verify OTP cases
       .addCase(verifyOTP.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -220,7 +296,7 @@ const authSlice = createSlice({
       .addCase(verifyOTP.fulfilled, (state, action) => {
         state.isLoading = false;
         state.verifyOTPSuccess = true;
-        state.resetToken = action.payload.resetToken; // Store reset token for next step
+        state.resetToken = action.payload.resetToken;
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.isLoading = false;
@@ -229,7 +305,7 @@ const authSlice = createSlice({
         state.resetToken = null;
       })
 
-      // ADDED: Reset Password cases
+      // Reset Password cases
       .addCase(resetPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -238,7 +314,7 @@ const authSlice = createSlice({
       .addCase(resetPassword.fulfilled, (state) => {
         state.isLoading = false;
         state.resetPasswordSuccess = true;
-        state.resetToken = null; // Clear reset token after successful password reset
+        state.resetToken = null;
       })
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
@@ -251,7 +327,8 @@ const authSlice = createSlice({
 export const {
   logout,
   clearError,
-  clearSuccessFlags, // ADDED: Export clearSuccessFlags
+  clearSuccessFlags,
   setCredentials,
+  updateUserProfile,
 } = authSlice.actions;
 export default authSlice.reducer;

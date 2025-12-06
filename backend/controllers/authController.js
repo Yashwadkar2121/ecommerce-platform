@@ -19,9 +19,8 @@ const register = async (req, res) => {
     const user = await User.create({ email, password, firstName, lastName });
     const tokens = generateTokens(user.id, user.role);
 
-    // In register and login functions, update Session creation:
     await Session.create({
-      userId: user.id, // Already a number - no need for toString()
+      userId: user.id,
       token: tokens.refreshToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       userAgent: req.get("User-Agent"),
@@ -57,9 +56,8 @@ const login = async (req, res) => {
 
     const tokens = generateTokens(user.id, user.role);
 
-    // In register and login functions, update Session creation:
     await Session.create({
-      userId: user.id, // Already a number - no need for toString()
+      userId: user.id,
       token: tokens.refreshToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       userAgent: req.get("User-Agent"),
@@ -83,6 +81,115 @@ const login = async (req, res) => {
   }
 };
 
+// 👤 Get User Profile
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ["password"] },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        phone: user.phone || null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Get Profile Error:", error.message);
+    res.status(500).json({ error: "Failed to get profile" });
+  }
+};
+
+// ✏️ Update User Profile
+const updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, phone } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update only allowed fields
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone;
+
+    await user.update(updateData);
+
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Update Profile Error:", error.message);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+};
+
+// 🔐 Change Password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "Both current and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify current password
+    const isValidPassword = await user.validatePassword(currentPassword);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.error("Change Password Error:", error.message);
+    res.status(500).json({ error: "Failed to change password" });
+  }
+};
+
 // ♻️ Refresh Token
 const refreshToken = async (req, res) => {
   try {
@@ -92,17 +199,13 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ error: "Refresh token required" });
     }
 
-    // Verify token
     const decoded = await verifyRefreshToken(refreshToken);
-
-    // 🛠️ FIX: Now we can directly use decoded.id
     const userId = decoded.id;
 
     if (!userId) {
       return res.status(401).json({ error: "Invalid token payload" });
     }
 
-    // Find session - Use Number type to match Session schema
     const session = await Session.findOne({
       userId: Number(userId),
       token: refreshToken,
@@ -112,10 +215,8 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ error: "Invalid refresh token" });
     }
 
-    // Generate new tokens
     const tokens = generateTokens(userId, decoded.role);
 
-    // Update session
     session.token = tokens.refreshToken;
     session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await session.save();
@@ -123,7 +224,6 @@ const refreshToken = async (req, res) => {
     res.json({ tokens });
   } catch (error) {
     console.error("❌ Refresh Token Error:", error.message);
-    console.error("Error stack:", error.stack);
     res.status(401).json({ error: "Invalid refresh token" });
   }
 };
@@ -141,22 +241,17 @@ const logout = async (req, res) => {
       return res.status(400).json({ error: "Refresh token required" });
     }
 
-    // Check if session exists - FIXED: Use Number type to match schema
     const session = await Session.findOne({
-      userId: Number(req.user.id), // Convert to Number to match schema
+      userId: Number(req.user.id),
       token: refreshToken,
     });
 
     if (!session) {
-      // Debug: Check all sessions for this user
-      const userSessions = await Session.find({ userId: Number(req.user.id) });
-
       return res.status(404).json({
         error: "Session not found. Please log in again.",
       });
     }
 
-    // Check if session is expired
     if (session.expiresAt < new Date()) {
       await Session.deleteOne({ _id: session._id });
       return res.status(401).json({
@@ -164,7 +259,6 @@ const logout = async (req, res) => {
       });
     }
 
-    // Delete session (logout)
     await Session.deleteOne({ _id: session._id });
 
     return res.json({
@@ -173,7 +267,6 @@ const logout = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Logout Error:", error.message);
-    console.error("Error stack:", error.stack);
     return res.status(500).json({ error: "Logout failed" });
   }
 };
@@ -188,7 +281,6 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({
@@ -197,37 +289,28 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate OTP
     const otp = generateOTP();
-
-    // Set expiration (10 minutes from now)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Delete any existing tokens for this email
     await PasswordResetToken.destroy({ where: { email } });
 
-    // Create new token
     await PasswordResetToken.create({
       email,
       token: otp,
       expiresAt,
     });
 
-    // Send email with OTP
     await sendEmail({
       to: email,
       subject: "Password Reset OTP",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
-          <p>You have requested to reset your password. Use the OTP below to proceed:</p>
+          <p>Use the OTP below to reset your password:</p>
           <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
             <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
           </div>
           <p>This OTP is valid for 10 minutes.</p>
-          <p>If you didn't request a password reset, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="color: #777; font-size: 12px;">This is an automated message, please do not reply.</p>
         </div>
       `,
     });
@@ -250,7 +333,6 @@ const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    // Find the token
     const tokenRecord = await PasswordResetToken.findOne({
       where: { email, token: otp },
     });
@@ -262,7 +344,6 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    // Check if token is expired
     if (new Date() > tokenRecord.expiresAt) {
       await PasswordResetToken.destroy({ where: { email, token: otp } });
       return res.status(400).json({
@@ -271,7 +352,6 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    // Check if token already used
     if (tokenRecord.used) {
       return res.status(400).json({
         success: false,
@@ -279,10 +359,8 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    // Mark token as used
     await tokenRecord.update({ used: true });
 
-    // Create a temporary reset token for the next step
     const resetToken = jwt.sign(
       { email, purpose: "password_reset" },
       process.env.JWT_SECRET,
@@ -308,7 +386,6 @@ const resetPassword = async (req, res) => {
   try {
     const { resetToken, newPassword } = req.body;
 
-    // Verify the reset token
     let decoded;
     try {
       decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
@@ -319,7 +396,6 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Check if token is for password reset
     if (decoded.purpose !== "password_reset") {
       return res.status(400).json({
         success: false,
@@ -329,7 +405,6 @@ const resetPassword = async (req, res) => {
 
     const { email } = decoded;
 
-    // Find user
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({
@@ -338,14 +413,11 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
-    // Delete all reset tokens for this email
     await PasswordResetToken.destroy({ where: { email } });
 
-    // Send confirmation email
     await sendEmail({
       to: email,
       subject: "Password Reset Successful",
@@ -353,9 +425,6 @@ const resetPassword = async (req, res) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Successful</h2>
           <p>Your password has been successfully reset.</p>
-          <p>If you did not make this change, please contact our support team immediately.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="color: #777; font-size: 12px;">This is an automated message, please do not reply.</p>
         </div>
       `,
     });
@@ -376,6 +445,9 @@ const resetPassword = async (req, res) => {
 module.exports = {
   register,
   login,
+  getProfile,
+  updateProfile,
+  changePassword,
   refreshToken,
   logout,
   generateOTP,

@@ -1,21 +1,90 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, MapPin, Phone, Edit2, Save, X } from "lucide-react";
-import { useAppSelector } from "../store/hooks";
+import {
+  User,
+  Mail,
+  Phone,
+  Edit2,
+  Save,
+  X,
+  CheckCircle,
+  Lock,
+  Calendar,
+} from "lucide-react";
+import { useAppSelector, useAppDispatch } from "../store/hooks";
+import {
+  loadUser,
+  updateProfile,
+  changePassword,
+  clearError,
+  updateUserProfile,
+} from "../store/slices/authSlice";
 
 const Profile = () => {
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, isLoading, error, updateSuccess, changePasswordSuccess } =
+    useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
+
   const [isEditing, setIsEditing] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    email: user?.email || "",
+    firstName: "",
+    lastName: "",
+    email: "",
     phone: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
   });
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [passwordErrors, setPasswordErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // Fetch profile data on component mount
+  useEffect(() => {
+    dispatch(loadUser());
+  }, [dispatch]);
+
+  // Update form data when user data is loaded
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
+
+  // Handle success messages
+  useEffect(() => {
+    if (updateSuccess) {
+      setSuccessMessage("Profile updated successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
+    }
+  }, [updateSuccess]);
+
+  useEffect(() => {
+    if (changePasswordSuccess) {
+      setSuccessMessage("Password changed successfully!");
+      setShowPasswordForm(false);
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setTimeout(() => setSuccessMessage(""), 3000);
+    }
+  }, [changePasswordSuccess]);
 
   const handleChange = (e) => {
     setFormData({
@@ -24,33 +93,146 @@ const Profile = () => {
     });
   };
 
-  const handleSave = () => {
-    // Handle profile update here
-    setIsEditing(false);
+  const handlePasswordChange = (e) => {
+    setPasswordData({
+      ...passwordData,
+      [e.target.name]: e.target.value,
+    });
+
+    // Clear errors when user types
+    if (passwordErrors[e.target.name]) {
+      setPasswordErrors({
+        ...passwordErrors,
+        [e.target.name]: "",
+      });
+    }
+  };
+
+  const validatePassword = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (!passwordData.currentPassword.trim()) {
+      errors.currentPassword = "Current password is required";
+      isValid = false;
+    }
+
+    if (!passwordData.newPassword.trim()) {
+      errors.newPassword = "New password is required";
+      isValid = false;
+    } else if (passwordData.newPassword.length < 6) {
+      errors.newPassword = "Password must be at least 6 characters";
+      isValid = false;
+    }
+
+    if (!passwordData.confirmPassword.trim()) {
+      errors.confirmPassword = "Please confirm your new password";
+      isValid = false;
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+      isValid = false;
+    }
+
+    setPasswordErrors(errors);
+    return isValid;
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const updateData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+      };
+
+      const result = await dispatch(updateProfile(updateData)).unwrap();
+
+      // Update local user state immediately
+      dispatch(updateUserProfile(updateData));
+      setIsEditing(false);
+    } catch (error) {
+      // Error is handled by Redux
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!validatePassword()) return;
+
+    try {
+      await dispatch(
+        changePassword({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        })
+      ).unwrap();
+    } catch (error) {
+      // Error is handled by Redux
+    }
   };
 
   const handleCancel = () => {
-    setFormData({
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      email: user?.email || "",
-      phone: "",
-      address: "",
-      city: "",
-      state: "",
-      zipCode: "",
-    });
+    if (user) {
+      setFormData({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+      });
+    }
     setIsEditing(false);
+    dispatch(clearError());
   };
+
+  const handleCancelPassword = () => {
+    setShowPasswordForm(false);
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setPasswordErrors({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    dispatch(clearError());
+  };
+
+  if (isLoading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg"
+          >
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2" />
+              <span>{successMessage}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {/* Profile Header */}
-          <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-8 text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+          <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-8 text-black">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+              <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                 <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
                   <User size={32} />
                 </div>
@@ -61,70 +243,176 @@ const Profile = () => {
                   <p className="text-primary-100">{user?.email}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="bg-white text-primary-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-semibold flex items-center space-x-2"
-              >
-                {isEditing ? (
-                  <>
-                    <X size={18} />
-                    <span>Cancel</span>
-                  </>
-                ) : (
-                  <>
-                    <Edit2 size={18} />
-                    <span>Edit Profile</span>
-                  </>
-                )}
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowPasswordForm(!showPasswordForm)}
+                  className="bg-white/20 text-black px-4 py-2 rounded-lg hover:bg-white/30 transition-colors font-semibold flex items-center space-x-2"
+                >
+                  <Lock size={18} />
+                  <span>Change Password</span>
+                </button>
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="bg-white text-primary-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-semibold flex items-center space-x-2"
+                >
+                  {isEditing ? (
+                    <>
+                      <X size={18} />
+                      <span>Cancel</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit2 size={18} />
+                      <span>Edit Profile</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Profile Content */}
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Personal Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Personal Information
-                </h2>
-
+          {/* Password Change Form */}
+          {showPasswordForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="px-6 py-6 border-b border-gray-200"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Change Password
+              </h3>
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name
+                    Current Password
                   </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
-                  ) : (
-                    <p className="text-gray-900">{user?.firstName}</p>
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={handlePasswordChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                      passwordErrors.currentPassword
+                        ? "border-red-300"
+                        : "border-gray-300"
+                    }`}
+                    placeholder="Enter current password"
+                  />
+                  {passwordErrors.currentPassword && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {passwordErrors.currentPassword}
+                    </p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name
+                    New Password
                   </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
-                  ) : (
-                    <p className="text-gray-900">{user?.lastName}</p>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                      passwordErrors.newPassword
+                        ? "border-red-300"
+                        : "border-gray-300"
+                    }`}
+                    placeholder="Enter new password (min. 6 characters)"
+                  />
+                  {passwordErrors.newPassword && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {passwordErrors.newPassword}
+                    </p>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                      passwordErrors.confirmPassword
+                        ? "border-red-300"
+                        : "border-gray-300"
+                    }`}
+                    placeholder="Confirm new password"
+                  />
+                  {passwordErrors.confirmPassword && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {passwordErrors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={handleCancelPassword}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={isLoading}
+                    className="px-6 py-2 bg-primary-600 text-black rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                  >
+                    <Lock size={18} />
+                    <span>{isLoading ? "Updating..." : "Update Password"}</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Profile Content */}
+          <div className="p-6">
+            <div className="max-w-2xl mx-auto">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                Personal Information
+              </h2>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{user?.firstName}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{user?.lastName}</p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -132,17 +420,7 @@ const Profile = () => {
                     <Mail size={16} className="mr-2" />
                     Email
                   </label>
-                  {isEditing ? (
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
-                  ) : (
-                    <p className="text-gray-900">{user?.email}</p>
-                  )}
+                  <p className="text-gray-900">{user?.email}</p>
                 </div>
 
                 <div>
@@ -157,129 +435,57 @@ const Profile = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Enter your phone number"
                     />
                   ) : (
                     <p className="text-gray-900">
-                      {formData.phone || "Not provided"}
+                      {user?.phone || "Not provided"}
                     </p>
                   )}
                 </div>
-              </motion.div>
 
-              {/* Address Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="space-y-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Address Information
-                </h2>
-
+                {/* Member Since Section */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <MapPin size={16} className="mr-2" />
-                    Address
+                    <Calendar size={16} className="mr-2" />
+                    Member Since
                   </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
-                  ) : (
-                    <p className="text-gray-900">
-                      {formData.address || "Not provided"}
-                    </p>
-                  )}
+                  <p className="text-gray-900">
+                    {user?.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })
+                      : "N/A"}
+                  </p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900">
-                        {formData.city || "Not provided"}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      State
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900">
-                        {formData.state || "Not provided"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ZIP Code
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="zipCode"
-                      value={formData.zipCode}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
-                  ) : (
-                    <p className="text-gray-900">
-                      {formData.zipCode || "Not provided"}
-                    </p>
-                  )}
-                </div>
-              </motion.div>
+              {/* Save Button */}
+              {isEditing && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200"
+                >
+                  <button
+                    onClick={handleCancel}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={isLoading}
+                    className="px-6 py-2 bg-primary-600 text-black rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                  >
+                    <Save size={18} />
+                    <span>{isLoading ? "Saving..." : "Save Changes"}</span>
+                  </button>
+                </motion.div>
+              )}
             </div>
-
-            {/* Save Button */}
-            {isEditing && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200"
-              >
-                <button
-                  onClick={handleCancel}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-                >
-                  <Save size={18} />
-                  <span>Save Changes</span>
-                </button>
-              </motion.div>
-            )}
           </div>
         </div>
       </div>
