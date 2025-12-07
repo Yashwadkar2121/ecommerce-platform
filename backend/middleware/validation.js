@@ -12,10 +12,51 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 const validateRegistration = [
-  body("email").isEmail().normalizeEmail(),
-  body("password").isLength({ min: 6 }),
-  body("firstName").notEmpty().trim(),
-  body("lastName").notEmpty().trim(),
+  body("email")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Please enter a valid email address")
+    .custom(async (email) => {
+      const User = require("../models/mysql/User");
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        throw new Error("Email already registered");
+      }
+      return true;
+    }),
+  body("password")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
+  // REMOVE or simplify the pattern validation
+  body("firstName")
+    .notEmpty()
+    .trim()
+    .withMessage("First name is required")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("First name must be between 2 and 50 characters"),
+  body("lastName")
+    .notEmpty()
+    .trim()
+    .withMessage("Last name is required")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Last name must be between 2 and 50 characters"),
+  body("phone")
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Phone number must be exactly 10 digits")
+    .custom(async (phone, { req }) => {
+      if (!phone) return true;
+
+      const User = require("../models/mysql/User");
+      const existingUser = await User.findOne({
+        where: { phone },
+        attributes: ["id", "email"],
+      });
+
+      if (existingUser) {
+        throw new Error("Phone number already registered to another account");
+      }
+      return true;
+    }),
   handleValidationErrors,
 ];
 
@@ -24,13 +65,36 @@ const validateProfileUpdate = [
     .optional()
     .notEmpty()
     .trim()
-    .withMessage("First name cannot be empty"),
+    .withMessage("First name cannot be empty")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("First name must be between 2 and 50 characters"),
   body("lastName")
     .optional()
     .notEmpty()
     .trim()
-    .withMessage("Last name cannot be empty"),
-  body("phone").optional().trim(),
+    .withMessage("Last name cannot be empty")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Last name must be between 2 and 50 characters"),
+  body("phone")
+    .optional()
+    .trim()
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Phone number must be exactly 10 digits")
+    .custom(async (phone, { req }) => {
+      if (!phone) return true;
+
+      const User = require("../models/mysql/User");
+      const existingUser = await User.findOne({
+        where: { phone },
+        attributes: ["id", "email"],
+      });
+
+      // If phone exists and belongs to a different user
+      if (existingUser && existingUser.id !== req.user.id) {
+        throw new Error("Phone number already registered to another account");
+      }
+      return true;
+    }),
   handleValidationErrors,
 ];
 
@@ -40,7 +104,11 @@ const validatePasswordChange = [
     .withMessage("Current password is required"),
   body("newPassword")
     .isLength({ min: 6 })
-    .withMessage("New password must be at least 6 characters"),
+    .withMessage("New password must be at least 6 characters")
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage(
+      "New password must contain at least one uppercase letter, one lowercase letter, and one number"
+    ),
   handleValidationErrors,
 ];
 

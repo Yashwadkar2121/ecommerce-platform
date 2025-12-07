@@ -9,14 +9,30 @@ const { sendEmail } = require("../services/emailService");
 // 🧩 Register User
 const register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, phone } = req.body;
 
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ error: "User already exists" });
+    // Check if email already exists
+    const existingEmail = await User.findOne({ where: { email } });
+    if (existingEmail) {
+      return res.status(400).json({ error: "Email already registered" });
     }
 
-    const user = await User.create({ email, password, firstName, lastName });
+    // Check if phone already exists (if provided)
+    if (phone) {
+      const existingPhone = await User.findOne({ where: { phone } });
+      if (existingPhone) {
+        return res.status(400).json({ error: "Phone number already in use" });
+      }
+    }
+
+    const user = await User.create({
+      email,
+      password,
+      firstName,
+      lastName,
+      phone: phone || null, // Store null if empty
+    });
+
     const tokens = generateTokens(user.id, user.role);
 
     await Session.create({
@@ -34,12 +50,25 @@ const register = async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         role: user.role,
       },
       tokens,
     });
   } catch (error) {
     console.error("Registration Error:", error.message);
+
+    // Handle unique constraint errors
+    if (error.name === "SequelizeUniqueConstraintError") {
+      const field = error.errors[0]?.path;
+      if (field === "phone") {
+        return res.status(400).json({ error: "Phone number already in use" });
+      }
+      if (field === "email") {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+    }
+
     res.status(500).json({ error: "Registration failed" });
   }
 };
@@ -71,6 +100,7 @@ const login = async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         role: user.role,
       },
       tokens,
@@ -98,8 +128,8 @@ const getProfile = async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         role: user.role,
-        phone: user.phone || null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -121,11 +151,35 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // Check phone uniqueness if phone is being changed
+    if (phone !== undefined && phone !== user.phone) {
+      // If phone is being cleared (set to empty/null)
+      if (!phone || phone === "") {
+        // Allow clearing phone number - no uniqueness check needed
+        console.log(`Clearing phone number for user ${userId}`);
+      } else {
+        // Check if new phone number already exists
+        const existingUser = await User.findOne({
+          where: { phone },
+          attributes: ["id", "email"],
+        });
+
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({
+            error: "Phone number already in use by another account",
+          });
+        }
+      }
+    }
+
     // Update only allowed fields
     const updateData = {};
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) updateData.phone = phone;
+    if (phone !== undefined) {
+      // Convert empty string to null to avoid unique constraint issues
+      updateData.phone = phone && phone.trim() !== "" ? phone : null;
+    }
 
     await user.update(updateData);
 
@@ -144,11 +198,22 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Update Profile Error:", error.message);
+
+    // Handle unique constraint error
+    if (error.name === "SequelizeUniqueConstraintError") {
+      const field = error.errors[0]?.path;
+      if (field === "phone") {
+        return res.status(400).json({
+          error: "Phone number already in use by another account",
+        });
+      }
+    }
+
     res.status(500).json({ error: "Failed to update profile" });
   }
 };
 
-// 🔐 Change Password
+// 🔐 Change Password (Improved version)
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -166,20 +231,41 @@ const changePassword = async (req, res) => {
         .json({ error: "New password must be at least 6 characters" });
     }
 
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        error: "New password must be different from current password",
+      });
+    }
+
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Verify current password
     const isValidPassword = await user.validatePassword(currentPassword);
     if (!isValidPassword) {
       return res.status(401).json({ error: "Current password is incorrect" });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
+
+    // Send email notification
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Password Changed Successfully",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Password Changed</h2>
+            <p>Your password was successfully changed on ${new Date().toLocaleDateString()}.</p>
+            <p>If you didn't make this change, please contact support immediately.</p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Failed to send password change email:", emailError);
+    }
 
     res.json({
       message: "Password changed successfully",
@@ -413,6 +499,14 @@ const resetPassword = async (req, res) => {
       });
     }
 
+    // Validate new password
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 6 characters",
+      });
+    }
+
     user.password = newPassword;
     await user.save();
 
@@ -425,6 +519,7 @@ const resetPassword = async (req, res) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Successful</h2>
           <p>Your password has been successfully reset.</p>
+          <p>If you didn't make this change, please contact support immediately.</p>
         </div>
       `,
     });
@@ -442,6 +537,53 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Add this function to check phone availability
+const checkPhoneAvailability = async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    console.log("🔍 Checking phone availability for:", phone);
+
+    if (!phone || !/^[0-9]{10}$/.test(phone)) {
+      console.log("❌ Invalid phone format:", phone);
+      return res.status(400).json({
+        available: false,
+        error: "Invalid phone format. Must be exactly 10 digits.",
+      });
+    }
+
+    console.log("🔍 Querying database for phone:", phone);
+    const existingUser = await User.findOne({
+      where: { phone },
+      attributes: ["id", "email"],
+    });
+
+    console.log("🔍 Database result:", existingUser ? "Found" : "Not found");
+
+    if (existingUser) {
+      console.log("❌ Phone already exists, user email:", existingUser.email);
+      return res.status(200).json({
+        available: false,
+        error: "Phone number already in use",
+        userId: existingUser.id,
+      });
+    }
+
+    console.log("✅ Phone is available");
+    return res.status(200).json({
+      available: true,
+      message: "Phone number is available",
+    });
+  } catch (error) {
+    console.error("💥 Check Phone Error:", error.message);
+    console.error("💥 Error stack:", error.stack);
+    return res.status(500).json({
+      available: false,
+      error: "Failed to check phone availability: " + error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -454,4 +596,5 @@ module.exports = {
   forgotPassword,
   verifyOTP,
   resetPassword,
+  checkPhoneAvailability,
 };

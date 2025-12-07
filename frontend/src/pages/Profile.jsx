@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Lock,
   Calendar,
+  AlertCircle,
 } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import {
@@ -33,6 +34,12 @@ const Profile = () => {
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
+  });
+
+  const [formErrors, setFormErrors] = useState({
+    firstName: "",
+    lastName: "",
     phone: "",
   });
 
@@ -65,6 +72,17 @@ const Profile = () => {
     }
   }, [user]);
 
+  // Clear errors when switching modes
+  useEffect(() => {
+    if (!isEditing) {
+      setFormErrors({
+        firstName: "",
+        lastName: "",
+        phone: "",
+      });
+    }
+  }, [isEditing]);
+
   // Handle success messages
   useEffect(() => {
     if (updateSuccess) {
@@ -86,11 +104,40 @@ const Profile = () => {
     }
   }, [changePasswordSuccess]);
 
+  // Format phone input to only allow digits and limit to 10
+  const formatPhone = (value) => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, "");
+    // Limit to 10 digits
+    return digits.slice(0, 10);
+  };
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    let formattedValue = value;
+
+    // Format phone input
+    if (name === "phone") {
+      formattedValue = formatPhone(value);
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: formattedValue,
     });
+
+    // Clear errors when user types
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: "",
+      });
+    }
+
+    // Clear server error when user types
+    if (error) {
+      dispatch(clearError());
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -106,6 +153,37 @@ const Profile = () => {
         [e.target.name]: "",
       });
     }
+  };
+
+  // Validate profile form
+  const validateProfile = () => {
+    const errors = {};
+    let isValid = true;
+
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required";
+      isValid = false;
+    } else if (formData.firstName.length < 2) {
+      errors.firstName = "First name must be at least 2 characters";
+      isValid = false;
+    }
+
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last name is required";
+      isValid = false;
+    } else if (formData.lastName.length < 2) {
+      errors.lastName = "Last name must be at least 2 characters";
+      isValid = false;
+    }
+
+    // Phone validation - exactly 10 digits
+    if (formData.phone && !/^[0-9]{10}$/.test(formData.phone)) {
+      errors.phone = "Phone number must be exactly 10 digits";
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
   };
 
   const validatePassword = () => {
@@ -138,11 +216,13 @@ const Profile = () => {
   };
 
   const handleSaveProfile = async () => {
+    if (!validateProfile()) return;
+
     try {
       const updateData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phone: formData.phone,
+        phone: formData.phone || null, // Send null if phone is empty
       };
 
       const result = await dispatch(updateProfile(updateData)).unwrap();
@@ -180,6 +260,11 @@ const Profile = () => {
       });
     }
     setIsEditing(false);
+    setFormErrors({
+      firstName: "",
+      lastName: "",
+      phone: "",
+    });
     dispatch(clearError());
   };
 
@@ -196,6 +281,18 @@ const Profile = () => {
       confirmPassword: "",
     });
     dispatch(clearError());
+  };
+
+  // Helper to get input classes based on field state
+  const getInputClasses = (fieldName) => {
+    const baseClasses =
+      "w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent ";
+
+    if (formErrors[fieldName]) {
+      return baseClasses + "border-red-300";
+    }
+
+    return baseClasses + "border-gray-300";
   };
 
   if (isLoading && !user) {
@@ -385,15 +482,29 @@ const Profile = () => {
                       First Name
                     </label>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          name="firstName"
+                          value={formData.firstName}
+                          onChange={handleChange}
+                          className={getInputClasses("firstName")}
+                          placeholder="Enter first name"
+                        />
+                        {formErrors.firstName && (
+                          <AlertCircle
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                            size={18}
+                          />
+                        )}
+                      </div>
                     ) : (
                       <p className="text-gray-900">{user?.firstName}</p>
+                    )}
+                    {formErrors.firstName && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {formErrors.firstName}
+                      </p>
                     )}
                   </div>
 
@@ -402,15 +513,29 @@ const Profile = () => {
                       Last Name
                     </label>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          name="lastName"
+                          value={formData.lastName}
+                          onChange={handleChange}
+                          className={getInputClasses("lastName")}
+                          placeholder="Enter last name"
+                        />
+                        {formErrors.lastName && (
+                          <AlertCircle
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                            size={18}
+                          />
+                        )}
+                      </div>
                     ) : (
                       <p className="text-gray-900">{user?.lastName}</p>
+                    )}
+                    {formErrors.lastName && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {formErrors.lastName}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -421,25 +546,63 @@ const Profile = () => {
                     Email
                   </label>
                   <p className="text-gray-900">{user?.email}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Email cannot be changed
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                     <Phone size={16} className="mr-2" />
-                    Phone
+                    Phone Number
                   </label>
                   {isEditing ? (
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      placeholder="Enter your phone number"
-                    />
+                    <div>
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          className={getInputClasses("phone")}
+                          placeholder="1234567890"
+                          maxLength="10"
+                        />
+                        {formErrors.phone && (
+                          <AlertCircle
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                            size={18}
+                          />
+                        )}
+                      </div>
+                      {formErrors.phone ? (
+                        <p className="mt-1 text-sm text-red-600">
+                          {formErrors.phone}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm text-gray-500">
+                          {formData.phone.length === 10 ? (
+                            <span className="text-green-600">
+                              ✓ Valid 10-digit phone number
+                            </span>
+                          ) : (
+                            "Enter exactly 10 digits (no spaces or special characters)"
+                          )}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-gray-900">
-                      {user?.phone || "Not provided"}
+                      {user?.phone ? (
+                        <span className="flex items-center">
+                          {user.phone}
+                          {/^[0-9]{10}$/.test(user.phone) && (
+                            <CheckCircle className="ml-2 h-4 w-4 text-green-500" />
+                          )}
+                        </span>
+                      ) : (
+                        "Not provided"
+                      )}
                     </p>
                   )}
                 </div>

@@ -1,10 +1,21 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, User, Eye, EyeOff, AlertCircle } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Phone,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { registerUser, clearError } from "../store/slices/authSlice";
 import TermsModal from "../components/TermsModal";
+import { authService } from "../services/authService";
 
 // Validation rules
 const validationRules = {
@@ -29,6 +40,11 @@ const validationRules = {
     pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     message: "Please enter a valid email address",
   },
+  phone: {
+    required: true,
+    pattern: /^[0-9]{10}$/,
+    message: "Phone number must be exactly 10 digits",
+  },
   password: {
     required: true,
     minLength: 6,
@@ -48,6 +64,7 @@ const Register = () => {
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -57,6 +74,7 @@ const Register = () => {
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
     terms: "",
@@ -65,12 +83,16 @@ const Register = () => {
     firstName: false,
     lastName: false,
     email: false,
+    phone: false,
     password: false,
     confirmPassword: false,
     terms: false,
   });
   const [showTerms, setShowTerms] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [phoneChecking, setPhoneChecking] = useState(false);
+  const [phoneAvailable, setPhoneAvailable] = useState(null); // null = not checked, true = available, false = taken
+  const [phoneStatusMessage, setPhoneStatusMessage] = useState("");
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -87,6 +109,90 @@ const Register = () => {
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
+
+  // Check phone availability
+  const checkPhoneAvailability = async (phone) => {
+    if (!phone || phone.length !== 10) {
+      setPhoneAvailable(null);
+      setPhoneStatusMessage("Enter exactly 10 digits");
+      return;
+    }
+
+    setPhoneChecking(true);
+    setPhoneStatusMessage("Checking availability...");
+
+    try {
+      const response = await authService.checkPhoneAvailability(phone);
+      const data = response.data;
+
+      if (data.available === true) {
+        setPhoneAvailable(true);
+        setPhoneStatusMessage("Phone number is available");
+        // Clear any existing phone error if phone is available
+        if (formErrors.phone === "Phone number already in use") {
+          setFormErrors({
+            ...formErrors,
+            phone: "",
+          });
+        }
+      } else if (data.available === false) {
+        setPhoneAvailable(false);
+        setPhoneStatusMessage(data.error || "Phone number already in use");
+        // Set form error immediately
+        setFormErrors({
+          ...formErrors,
+          phone: data.error || "Phone number already in use",
+        });
+      }
+    } catch (error) {
+      console.error("Phone check error:", error);
+      // If it's a 400 error (phone already exists), handle it
+      if (
+        error.response?.status === 200 &&
+        error.response?.data?.available === false
+      ) {
+        setPhoneAvailable(false);
+        const errorMsg =
+          error.response.data.error || "Phone number already in use";
+        setPhoneStatusMessage(errorMsg);
+        setFormErrors({
+          ...formErrors,
+          phone: errorMsg,
+        });
+      } else {
+        setPhoneAvailable(null);
+        setPhoneStatusMessage("Unable to check phone availability");
+      }
+    } finally {
+      setPhoneChecking(false);
+    }
+  };
+
+  // Debounced phone check effect
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (formData.phone.length === 10 && /^[0-9]{10}$/.test(formData.phone)) {
+        await checkPhoneAvailability(formData.phone);
+      } else {
+        setPhoneAvailable(null);
+        if (formData.phone.length > 0) {
+          setPhoneStatusMessage(`${formData.phone.length}/10 digits`);
+        } else {
+          setPhoneStatusMessage("Enter exactly 10 digits");
+        }
+      }
+    }, 800);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [formData.phone]);
+
+  // Format phone input to only allow digits and limit to 10
+  const formatPhone = (value) => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, "");
+    // Limit to 10 digits
+    return digits.slice(0, 10);
+  };
 
   // Validate a single field
   const validateField = (name, value) => {
@@ -134,6 +240,18 @@ const Register = () => {
       isValid = false;
     }
 
+    // Check phone availability before submitting
+    if (formData.phone && phoneAvailable === false) {
+      errors.phone = "Phone number already in use";
+      isValid = false;
+    }
+
+    // Also check if phone is not 10 digits
+    if (formData.phone && !/^[0-9]{10}$/.test(formData.phone)) {
+      errors.phone = "Phone number must be exactly 10 digits";
+      isValid = false;
+    }
+
     setFormErrors(errors);
     return isValid;
   };
@@ -141,9 +259,21 @@ const Register = () => {
   // Handle field change
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let formattedValue = value;
+
+    // Format phone input
+    if (name === "phone") {
+      formattedValue = formatPhone(value);
+      // Reset availability check when phone changes
+      if (value !== formData.phone) {
+        setPhoneAvailable(null);
+        setPhoneStatusMessage(`${formattedValue.length}/10 digits`);
+      }
+    }
+
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: formattedValue,
     });
 
     // Clear server error when user types
@@ -155,7 +285,7 @@ const Register = () => {
     if (touched[name] || formSubmitted) {
       setFormErrors({
         ...formErrors,
-        [name]: validateField(name, value),
+        [name]: validateField(name, formattedValue),
         // Clear confirm password error if password changes
         ...(name === "password" && formData.confirmPassword
           ? {
@@ -182,6 +312,11 @@ const Register = () => {
       ...formErrors,
       [name]: validateField(name, formData[name]),
     });
+
+    // Check phone availability when user leaves phone field
+    if (name === "phone" && formData.phone.length === 10) {
+      checkPhoneAvailability(formData.phone);
+    }
   };
 
   // Handle terms checkbox
@@ -251,6 +386,38 @@ const Register = () => {
       baseClasses +
       "border-gray-300 focus:border-primary-500 focus:ring-primary-200"
     );
+  };
+
+  // Helper to get phone status icon and color
+  const getPhoneStatusIcon = () => {
+    if (phoneChecking) {
+      return (
+        <div className="flex items-center text-gray-500">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-2"></div>
+          Checking...
+        </div>
+      );
+    }
+
+    if (phoneAvailable === true) {
+      return (
+        <div className="flex items-center text-green-600">
+          <CheckCircle className="h-4 w-4 mr-2" />
+          {phoneStatusMessage}
+        </div>
+      );
+    }
+
+    if (phoneAvailable === false) {
+      return (
+        <div className="flex items-center text-red-600">
+          <XCircle className="h-4 w-4 mr-2" />
+          {phoneStatusMessage}
+        </div>
+      );
+    }
+
+    return <div className="text-gray-500">{phoneStatusMessage}</div>;
   };
 
   return (
@@ -418,6 +585,71 @@ const Register = () => {
 
             <div>
               <label
+                htmlFor="phone"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Phone Number
+              </label>
+              <div className="mt-1 relative">
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  value={formData.phone}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={getInputClasses("phone")}
+                  placeholder="1234567890"
+                  maxLength="10"
+                  aria-invalid={hasError("phone")}
+                  aria-describedby={
+                    hasError("phone") ? "phone-error" : undefined
+                  }
+                />
+                <Phone
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={18}
+                />
+                {phoneChecking && (
+                  <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  </div>
+                )}
+                {!phoneChecking && phoneAvailable === true && (
+                  <CheckCircle
+                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-green-500"
+                    size={18}
+                  />
+                )}
+                {!phoneChecking && phoneAvailable === false && (
+                  <XCircle
+                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-red-500"
+                    size={18}
+                  />
+                )}
+                {!phoneChecking &&
+                  hasError("phone") &&
+                  phoneAvailable === null && (
+                    <AlertCircle
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                      size={18}
+                    />
+                  )}
+              </div>
+              {hasError("phone") && (
+                <p id="phone-error" className="mt-1 text-sm text-red-600">
+                  {formErrors.phone}
+                </p>
+              )}
+              {!hasError("phone") && (
+                <div className="mt-1 text-sm">{getPhoneStatusIcon()}</div>
+              )}
+            </div>
+
+            <div>
+              <label
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700"
               >
@@ -560,8 +792,9 @@ const Register = () => {
               {!hasError("confirmPassword") &&
                 touched.confirmPassword &&
                 formData.password === formData.confirmPassword && (
-                  <p className="mt-1 text-sm text-green-600">
-                    ✓ Passwords match
+                  <p className="mt-1 text-sm text-green-600 flex items-center">
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Passwords match
                   </p>
                 )}
             </div>
@@ -603,7 +836,7 @@ const Register = () => {
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || phoneChecking}
                 className="w-full flex justify-center py-3 px-4 border rounded-lg shadow-sm text-sm font-medium text-black border-gray-600 bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? (

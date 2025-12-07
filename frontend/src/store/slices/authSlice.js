@@ -51,6 +51,13 @@ export const updateProfile = createAsyncThunk(
       const response = await authService.updateProfile(profileData);
       return response.data;
     } catch (error) {
+      // Extract validation errors if present
+      if (error.response?.data?.details) {
+        const errorMessages = error.response.data.details
+          .map((err) => err.msg)
+          .join(", ");
+        return rejectWithValue(errorMessages);
+      }
       return rejectWithValue(
         error.response?.data?.error || "Failed to update profile"
       );
@@ -69,6 +76,13 @@ export const changePassword = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
+      // Extract validation errors if present
+      if (error.response?.data?.details) {
+        const errorMessages = error.response.data.details
+          .map((err) => err.msg)
+          .join(", ");
+        return rejectWithValue(errorMessages);
+      }
       return rejectWithValue(
         error.response?.data?.error || "Failed to change password"
       );

@@ -38,6 +38,14 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    phone: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+      validate: {
+        is: /^[0-9]{10}$/, // 10-digit validation
+      },
+    },
     role: {
       type: DataTypes.ENUM("customer", "admin"),
       defaultValue: "customer",
@@ -65,9 +73,8 @@ User.prototype.validatePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-// ✅ Import Order model and define association
 const Order = require("./Order");
-User.hasMany(Order, { foreignKey: "userId" }); // ✅ ADD THIS
-Order.belongsTo(User, { foreignKey: "userId" }); // ✅ ADD THIS
+User.hasMany(Order, { foreignKey: "userId" });
+Order.belongsTo(User, { foreignKey: "userId" });
 
 module.exports = User;
