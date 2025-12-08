@@ -192,7 +192,7 @@ const Orders = () => {
             </p>
             <button
               onClick={() => (window.location.href = "/products")}
-              className="bg-primary-600 text-white px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
+              className="bg-primary-600 text-black px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
             >
               Start Shopping
             </button>

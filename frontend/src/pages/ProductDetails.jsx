@@ -122,7 +122,7 @@ const ProductDetails = () => {
           </p>
           <button
             onClick={() => navigate("/products")}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all duration-200 font-medium"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-black px-6 py-3 rounded-lg hover:opacity-90 transition-all duration-200 font-medium"
           >
             <ArrowLeft size={20} />
             Back to Products
@@ -145,7 +145,7 @@ const ProductDetails = () => {
             exit={{ opacity: 0, y: 50 }}
             className="fixed bottom-4 right-4 z-50"
           >
-            <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3">
+            <div className="bg-green-500 text-black px-6 py-3 rounded-lg shadow-xl flex items-center gap-3">
               <Check size={20} />
               <span className="font-medium">Added to cart successfully!</span>
             </div>

@@ -351,7 +351,7 @@ const FilterSection = ({
             </div>
             <button
               onClick={handlePriceApply}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg transition-colors text-sm font-medium"
+              className="w-full bg-primary-600 hover:bg-primary-700 text-black py-2 rounded-lg transition-colors text-sm font-medium"
             >
               Apply Price
             </button>

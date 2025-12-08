@@ -196,7 +196,7 @@ const Products = () => {
                   onClick={() => setViewMode("grid")}
                   className={`p-2.5 transition-all duration-200 ${
                     viewMode === "grid"
-                      ? "bg-primary-600 text-white"
+                      ? "bg-primary-600 text-black"
                       : "text-gray-600 hover:text-primary-600"
                   }`}
                 >
@@ -206,7 +206,7 @@ const Products = () => {
                   onClick={() => setViewMode("list")}
                   className={`p-2.5 transition-all duration-200 ${
                     viewMode === "list"
-                      ? "bg-primary-600 text-white"
+                      ? "bg-primary-600 text-black"
                       : "text-gray-600 hover:text-primary-600"
                   }`}
                 >
@@ -223,7 +223,7 @@ const Products = () => {
                   onClick={() => setViewMode("grid")}
                   className={`p-2.5 transition-all duration-200 ${
                     viewMode === "grid"
-                      ? "bg-primary-600 text-white"
+                      ? "bg-primary-600 text-black"
                       : "text-gray-600 hover:text-primary-600"
                   }`}
                 >
@@ -233,7 +233,7 @@ const Products = () => {
                   onClick={() => setViewMode("list")}
                   className={`p-2.5 transition-all duration-200 ${
                     viewMode === "list"
-                      ? "bg-primary-600 text-white"
+                      ? "bg-primary-600 text-black"
                       : "text-gray-600 hover:text-primary-600"
                   }`}
                 >
@@ -395,7 +395,7 @@ const Products = () => {
             </p>
             <button
               onClick={clearAllFilters}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg transition-all duration-200 font-medium"
+              className="bg-primary-600 hover:bg-primary-700 text-black px-6 py-3 rounded-lg transition-all duration-200 font-medium"
             >
               Reset All Filters
             </button>

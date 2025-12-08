@@ -44,7 +44,7 @@ const Cart = () => {
             </p>
             <Link
               to="/products"
-              className="inline-flex items-center px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-primary-600 text-black font-semibold rounded-lg hover:bg-primary-700 transition-colors"
             >
               Start Shopping
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -188,7 +188,7 @@ const Cart = () => {
 
               <Link
                 to="/checkout"
-                className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold text-center block"
+                className="w-full bg-primary-600 text-black py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold text-center block"
               >
                 Proceed to Checkout
               </Link>

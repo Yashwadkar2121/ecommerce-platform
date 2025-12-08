@@ -81,7 +81,7 @@ const Checkout = () => {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
                     step >= stepNumber
-                      ? "bg-primary-600 border-primary-600 text-white"
+                      ? "bg-primary-600 border-primary-600 text-black"
                       : "border-gray-300 text-gray-500"
                   }`}
                 >
@@ -215,7 +215,7 @@ const Checkout = () => {
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
+                    className="w-full bg-primary-600 text-black py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                   >
                     Continue to Payment
                   </button>
@@ -317,7 +317,7 @@ const Checkout = () => {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
+                      className="flex-1 bg-primary-600 text-black py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                     >
                       Complete Order
                     </button>
@@ -347,7 +347,7 @@ const Checkout = () => {
                 </div>
                 <button
                   onClick={() => (window.location.href = "/products")}
-                  className="bg-primary-600 text-white px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
+                  className="bg-primary-600 text-black px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                 >
                   Continue Shopping
                 </button>

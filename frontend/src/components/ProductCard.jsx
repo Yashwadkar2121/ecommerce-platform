@@ -21,6 +21,11 @@ const ProductCard = ({ product, index }) => {
         maxQuantity: product.inventory,
       })
     );
+
+    // Optional: Add haptic feedback on mobile
+    if (window.navigator.vibrate) {
+      window.navigator.vibrate(50);
+    }
   };
 
   return (
@@ -39,17 +44,16 @@ const ProductCard = ({ product, index }) => {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {product.inventory === 0 && (
-            <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+            <div className="absolute top-3 right-3 bg-red-600 text-black text-xs font-bold px-3 py-1 rounded-full">
               Sold Out
             </div>
           )}
           {product.ratings?.average >= 4.5 && (
-            <div className="absolute top-3 left-3 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+            <div className="absolute top-3 left-3 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
               <Star size={12} className="fill-current" />
               {product.ratings.average.toFixed(1)}
             </div>
           )}
-          {/* View Details Overlay */}
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
             <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
               <Eye size={20} className="text-gray-900" />

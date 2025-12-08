@@ -111,7 +111,7 @@ const FeaturedProducts = () => {
                   </span>
                   <button
                     onClick={() => handleAddToCart(product)}
-                    className="bg-primary-600 text-white p-2 rounded-lg hover:bg-primary-700 transition-colors"
+                    className="bg-primary-600 text-black p-2 rounded-lg hover:bg-primary-700 transition-colors"
                   >
                     <ShoppingCart size={20} />
                   </button>
@@ -135,7 +135,7 @@ const FeaturedProducts = () => {
         >
           <Link
             to="/products"
-            className="inline-flex items-center px-8 py-3 border-2 border-primary-600 text-primary-600 font-semibold rounded-lg hover:bg-primary-600 hover:text-white transition-colors duration-200"
+            className="inline-flex items-center px-8 py-3 border-2 border-primary-600 text-primary-600 font-semibold rounded-lg hover:bg-primary-600 hover:text-black transition-colors duration-200"
           >
             View All Products
           </Link>

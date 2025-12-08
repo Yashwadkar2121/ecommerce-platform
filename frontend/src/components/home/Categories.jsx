@@ -87,7 +87,7 @@ const Categories = () => {
                 <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 group-hover:border-primary-200">
                   <div className="flex items-center space-x-4">
                     <div
-                      className={`${category.color} p-3 rounded-xl text-white`}
+                      className={`${category.color} p-3 rounded-xl text-black`}
                     >
                       <category.icon size={32} />
                     </div>
