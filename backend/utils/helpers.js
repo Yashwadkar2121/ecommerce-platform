@@ -27,11 +27,11 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
-// Pagination helper
-const paginate = (page = 1, limit = 10) => {
-  const offset = (page - 1) * limit;
-  return { limit: parseInt(limit), offset: parseInt(offset) };
-};
+// // Pagination helper
+// const paginate = (page = 1, limit = 10) => {
+//   const offset = (page - 1) * limit;
+//   return { limit: parseInt(limit), offset: parseInt(offset) };
+// };
 
 // Sanitize user input
 const sanitizeInput = (input) => {
@@ -49,6 +49,54 @@ const calculateOrderTotal = (items) => {
     return total + item.price * item.quantity;
   }, 0);
 };
+/**
+ * Pagination helper
+ */
+const paginate = (page = 1, limit = 24) => {
+  const pageNum = parseInt(page) || 1;
+  const limitNum = parseInt(limit) || 24;
+  const offset = (pageNum - 1) * limitNum;
+
+  return {
+    page: pageNum,
+    limit: limitNum,
+    offset,
+  };
+};
+
+/**
+ * Debounce function for search
+ */
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+/**
+ * Format price
+ */
+const formatPrice = (price) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(price);
+};
+
+/**
+ * Truncate text
+ */
+const truncateText = (text, length = 100) => {
+  if (text.length <= length) return text;
+  return text.substring(0, length) + "...";
+};
 
 module.exports = {
   generateTrackingNumber,
@@ -58,4 +106,8 @@ module.exports = {
   paginate,
   sanitizeInput,
   calculateOrderTotal,
+  paginate,
+  debounce,
+  formatPrice,
+  truncateText,
 };

@@ -25,6 +25,14 @@ export const productService = {
     return api.get("/products/brands");
   },
 
+  getBrandsByCategory: (category) => {
+    const params = new URLSearchParams();
+    if (category) {
+      params.append("category", category);
+    }
+    return api.get(`/products/brands-by-category?${params.toString()}`);
+  },
+
   addReview: (productId, reviewData) => {
     return api.post(`/products/${productId}/reviews`, reviewData);
   },
