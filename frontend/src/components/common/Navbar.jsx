@@ -1,24 +1,24 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useLocation, useNavigate } from "react-router-dom"; // ADD useNavigate
-import { ShoppingCart, User, Menu, X, Search, LogOut } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { User, Menu, X, Search, LogOut, ShoppingCart } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { logout } from "../../store/slices/authSlice";
 import { toggleMobileMenu } from "../../store/slices/uiSlice";
+import CartIcon from "../../components/CartIcon";
+import QuickCartPreview from "../../components/QuickCartPreview";
 
 const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { isAuthenticated } = useAppSelector((state) => state.auth);
-  const { itemCount } = useAppSelector((state) => state.cart);
   const { mobileMenuOpen } = useAppSelector((state) => state.ui);
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const navigate = useNavigate(); // ADD THIS
+  const navigate = useNavigate();
 
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
-    // Close mobile menu if open
     if (mobileMenuOpen) {
       dispatch(toggleMobileMenu());
     }
@@ -37,7 +37,6 @@ const Navbar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Use navigate instead of window.location for search too
       navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
     }
   };
@@ -47,6 +46,12 @@ const Navbar = () => {
     { name: "Products", path: "/products" },
   ];
 
+  // Handle cart click in mobile menu
+  const handleCartClick = () => {
+    dispatch(toggleMobileMenu());
+    navigate("/cart");
+  };
+
   return (
     <>
       <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -54,8 +59,11 @@ const Navbar = () => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-              <ShoppingCart className="h-8 w-8 text-primary-600" />
-              <span className="text-xl font-bold text-gray-900">ShopEasy</span>
+              <div className="text-primary-600">
+                {" "}
+                <ShoppingCart size={24} />
+              </div>
+              <span className="text-xl font-bold text-gray-900"> ShopEasy</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -98,17 +106,14 @@ const Navbar = () => {
             <div className="hidden md:flex items-center space-x-4">
               {isAuthenticated ? (
                 <>
-                  <Link
-                    to="/cart"
-                    className="relative p-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  >
-                    <ShoppingCart size={24} />
-                    {itemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {itemCount}
-                      </span>
-                    )}
-                  </Link>
+                  {/* Cart with preview - Desktop */}
+                  <div className="relative">
+                    <Link to="/cart">
+                      <CartIcon />
+                    </Link>
+                    <QuickCartPreview />
+                  </div>
+
                   <Link
                     to="/profile"
                     className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
@@ -124,7 +129,6 @@ const Navbar = () => {
                 </>
               ) : (
                 <div className="flex items-center space-x-4">
-                  {/* Animated Login Button */}
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0.8 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -147,7 +151,6 @@ const Navbar = () => {
                     </Link>
                   </motion.div>
 
-                  {/* Animated Sign Up Button */}
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0.8 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -210,7 +213,7 @@ const Navbar = () => {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-white border-t border-gray-200"
           >
-            <div className="px-4 py-2 space-y-2">
+            <div className="px-4 py-2 space-y-3">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
@@ -228,28 +231,36 @@ const Navbar = () => {
 
               {isAuthenticated ? (
                 <>
-                  <Link
-                    to="/cart"
-                    onClick={() => dispatch(toggleMobileMenu())}
+                  {/* Cart link in mobile menu - Fixed: No nested Link */}
+                  <button
+                    onClick={handleCartClick}
                     className="flex items-center py-2 text-sm font-medium text-gray-700 hover:text-primary-600"
                   >
-                    <ShoppingCart size={20} className="mr-2" />
-                    Cart {itemCount > 0 && `(${itemCount})`}
-                  </Link>
+                    <div className="mr-4 -ml-3">
+                      <CartIcon onClick={handleCartClick} />
+                    </div>
+                    <span className="font-medium">Cart</span>
+                  </button>
+
                   <Link
                     to="/profile"
                     onClick={() => dispatch(toggleMobileMenu())}
                     className="flex items-center py-2 text-sm font-medium text-gray-700 hover:text-primary-600"
                   >
-                    <User size={20} className="mr-2" />
-                    Profile
+                    <div className="mr-4">
+                      <User size={20} className="text-gray-700" />
+                    </div>
+                    <span className="font-medium">Profile</span>
                   </Link>
+
                   <button
                     onClick={handleLogoutClick}
                     className="flex items-center w-full py-2 text-sm font-medium text-gray-700 hover:text-primary-600"
                   >
-                    <LogOut size={20} className="mr-2" />
-                    Logout
+                    <div className="mr-4">
+                      <LogOut size={20} className="text-gray-700" />
+                    </div>
+                    <span className="font-medium">Logout</span>
                   </button>
                 </>
               ) : (
@@ -257,7 +268,7 @@ const Navbar = () => {
                   <Link
                     to="/login"
                     onClick={() => dispatch(toggleMobileMenu())}
-                    className={`block py-2 text-sm font-medium ${
+                    className={`block py-3 text-sm font-medium ${
                       location.pathname === "/login"
                         ? "text-primary-600 font-semibold"
                         : "text-gray-700 hover:text-primary-600"
@@ -265,25 +276,17 @@ const Navbar = () => {
                   >
                     Login
                   </Link>
-
-                  {/* Mobile Sign Up Button with Animation */}
-                  <motion.div
-                    initial={{ scale: 0.95 }}
-                    animate={{ scale: 1 }}
-                    whileTap={{ scale: 0.98 }}
+                  <Link
+                    to="/register"
+                    onClick={() => dispatch(toggleMobileMenu())}
+                    className={`block py-3 text-sm font-medium ${
+                      location.pathname === "/register"
+                        ? "text-primary-600 font-semibold"
+                        : "text-gray-700 hover:text-primary-600"
+                    }`}
                   >
-                    <Link
-                      to="/register"
-                      onClick={() => dispatch(toggleMobileMenu())}
-                      className={`block py-2 text-sm font-medium ${
-                        location.pathname === "/register"
-                          ? "text-primary-600 font-semibold"
-                          : "text-gray-700 hover:text-primary-600"
-                      }`}
-                    >
-                      Sign Up
-                    </Link>
-                  </motion.div>
+                    Sign Up
+                  </Link>
                 </>
               )}
             </div>
@@ -308,7 +311,6 @@ const Navbar = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              {/* Warning Icon */}
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
                 <LogOut className="h-6 w-6 text-yellow-600" />
               </div>
