@@ -8,8 +8,8 @@ import {
   Info,
   Sparkles,
 } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { removeNotification } from "../store/slices/cartSlice";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { removeNotification } from "../../store/slices/cartSlice";
 import { Link } from "react-router-dom";
 
 const MODERN_THEMES = {

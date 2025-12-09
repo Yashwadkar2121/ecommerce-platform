@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, ArrowLeft, CheckCircle, RefreshCw } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { forgotPassword, clearError } from "../store/slices/authSlice";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { forgotPassword, clearError } from "../../store/slices/authSlice";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");

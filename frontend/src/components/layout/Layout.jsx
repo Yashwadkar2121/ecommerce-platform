@@ -1,6 +1,6 @@
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import CartNotification from "../CartNotification";
+import CartNotification from "../CartNotification/CartNotification";
 
 const Layout = ({ children }) => {
   return (

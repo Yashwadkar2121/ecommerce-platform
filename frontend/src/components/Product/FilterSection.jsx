@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, ChevronDown } from "lucide-react";
-import { useAppDispatch } from "../store/hooks";
-import { setFilters } from "../store/slices/productSlice";
+import { useAppDispatch } from "../../store/hooks";
+import { setFilters } from "../../store/slices/productSlice";
 
 // Define FilterDropdown component inside the same file
 const FilterDropdown = ({

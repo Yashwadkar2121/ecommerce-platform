@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Star, Eye } from "lucide-react";
 import { useDispatch } from "react-redux";
-import { addToCart } from "../store/slices/cartSlice";
+import { addToCart } from "../../store/slices/cartSlice";
 import { Link } from "react-router-dom";
 
 const ProductCard = ({ product, index }) => {

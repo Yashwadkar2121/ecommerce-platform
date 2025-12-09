@@ -8,9 +8,9 @@ import {
   setFilters,
   clearFilters,
 } from "../store/slices/productSlice";
-import ProductCard from "../components/ProductCard";
-import FilterSection from "../components/FilterSection";
-import InfiniteScrollLoader from "../components/InfiniteScrollLoader";
+import ProductCard from "../components/Product/ProductCard";
+import FilterSection from "../components/Product/FilterSection";
+import InfiniteScrollLoader from "../components/Product/InfiniteScrollLoader";
 
 const Products = () => {
   const dispatch = useAppDispatch();

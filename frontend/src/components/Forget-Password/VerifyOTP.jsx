@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Key, ArrowLeft, CheckCircle } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { verifyOTP, clearError } from "../store/slices/authSlice";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { verifyOTP, clearError } from "../../store/slices/authSlice";
 
 const VerifyOTP = () => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);

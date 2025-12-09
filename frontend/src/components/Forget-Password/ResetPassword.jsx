@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff, CheckCircle, ArrowLeft } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { resetPassword, clearError } from "../store/slices/authSlice";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { resetPassword, clearError } from "../../store/slices/authSlice";
 
 const ResetPassword = () => {
   const [passwords, setPasswords] = useState({

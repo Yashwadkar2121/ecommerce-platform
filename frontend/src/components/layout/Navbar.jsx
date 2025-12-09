@@ -5,8 +5,8 @@ import { User, Menu, X, Search, LogOut, ShoppingCart } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { logout } from "../../store/slices/authSlice";
 import { toggleMobileMenu } from "../../store/slices/uiSlice";
-import CartIcon from "../../components/CartIcon";
-import QuickCartPreview from "../../components/QuickCartPreview";
+import CartIcon from "../CartNotification/CartIcon";
+import QuickCartPreview from "../CartNotification/QuickCartPreview";
 
 const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, X, ChevronRight } from "lucide-react";
-import { useAppSelector } from "../store/hooks";
+import { useAppSelector } from "../../store/hooks";
 import { Link } from "react-router-dom";
 
 const QuickCartPreview = () => {

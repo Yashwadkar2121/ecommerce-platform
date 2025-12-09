@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
-import { useAppSelector } from "../store/hooks";
+import { useAppSelector } from "../../store/hooks";
 
 const CartIcon = ({ onClick }) => {
   const { itemCount, lastAddedItem } = useAppSelector((state) => state.cart);
