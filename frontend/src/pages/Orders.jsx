@@ -1,4 +1,3 @@
-import React from "react";
 import { motion } from "framer-motion";
 import { Package, Truck, CheckCircle, Clock, XCircle } from "lucide-react";
 
