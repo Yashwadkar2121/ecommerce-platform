@@ -64,6 +64,10 @@ export const authService = {
     return api.post("/auth/verify-otp", { email, otp });
   },
 
+  resendOTP: (email) => {
+    return api.post("/auth/resend-otp", { email: email });
+  },
+
   resetPassword: (resetToken, newPassword) => {
     return api.post("/auth/reset-password", { resetToken, newPassword });
   },

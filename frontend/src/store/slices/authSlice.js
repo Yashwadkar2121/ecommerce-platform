@@ -105,6 +105,21 @@ export const forgotPassword = createAsyncThunk(
   }
 );
 
+// Resend OTP
+export const resendOTP = createAsyncThunk(
+  "auth/resendOTP",
+  async (email, { rejectWithValue }) => {
+    try {
+      const response = await authService.resendOTP(email);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to resend OTP"
+      );
+    }
+  }
+);
+
 // Verify OTP
 export const verifyOTP = createAsyncThunk(
   "auth/verifyOTP",
@@ -144,10 +159,12 @@ const authSlice = createSlice({
     error: null,
     isUserLoaded: false,
     forgotPasswordSuccess: false,
+    resendOTPSuccess: false, // Added for resend OTP
     verifyOTPSuccess: false,
     resetPasswordSuccess: false,
     updateSuccess: false,
     changePasswordSuccess: false,
+    resendOTPAttempts: 0, // Track resend attempts
   },
   reducers: {
     logout: (state) => {
@@ -163,6 +180,7 @@ const authSlice = createSlice({
     },
     clearSuccessFlags: (state) => {
       state.forgotPasswordSuccess = false;
+      state.resendOTPSuccess = false;
       state.verifyOTPSuccess = false;
       state.resetPasswordSuccess = false;
       state.updateSuccess = false;
@@ -180,6 +198,12 @@ const authSlice = createSlice({
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
       }
+    },
+    incrementResendAttempts: (state) => {
+      state.resendOTPAttempts += 1;
+    },
+    resetResendAttempts: (state) => {
+      state.resendOTPAttempts = 0;
     },
   },
   extraReducers: (builder) => {
@@ -301,6 +325,23 @@ const authSlice = createSlice({
         state.forgotPasswordSuccess = false;
       })
 
+      // Resend OTP cases - NEW
+      .addCase(resendOTP.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.resendOTPSuccess = false;
+      })
+      .addCase(resendOTP.fulfilled, (state) => {
+        state.isLoading = false;
+        state.resendOTPSuccess = true;
+        state.resendOTPAttempts += 1;
+      })
+      .addCase(resendOTP.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        state.resendOTPSuccess = false;
+      })
+
       // Verify OTP cases
       .addCase(verifyOTP.pending, (state) => {
         state.isLoading = true;
@@ -311,6 +352,8 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.verifyOTPSuccess = true;
         state.resetToken = action.payload.resetToken;
+        // Reset resend attempts when OTP is verified
+        state.resendOTPAttempts = 0;
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.isLoading = false;
@@ -329,6 +372,8 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.resetPasswordSuccess = true;
         state.resetToken = null;
+        // Reset resend attempts when password is reset
+        state.resendOTPAttempts = 0;
       })
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
@@ -344,5 +389,7 @@ export const {
   clearSuccessFlags,
   setCredentials,
   updateUserProfile,
+  incrementResendAttempts,
+  resetResendAttempts,
 } = authSlice.actions;
 export default authSlice.reducer;

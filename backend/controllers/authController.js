@@ -467,6 +467,155 @@ const verifyOTP = async (req, res) => {
   }
 };
 
+// Resend OTP - Handle both cases
+const resendOTP = async (req, res) => {
+  try {
+    console.log("🔄 Resend OTP endpoint called");
+    console.log("📥 Full request body:", req.body);
+
+    let email;
+
+    // Handle both cases:
+    // 1. { email: "value@example.com" } - Correct
+    // 2. { email: { email: "value@example.com" } } - Incorrect (but handle it)
+
+    if (
+      req.body.email &&
+      typeof req.body.email === "object" &&
+      req.body.email.email
+    ) {
+      // Case 2: Double-wrapped email
+      console.log("⚠️  Detected double-wrapped email");
+      email = req.body.email.email;
+    } else {
+      // Case 1: Normal email
+      email = req.body.email;
+    }
+
+    console.log("📥 Extracted email:", email);
+    console.log("📥 Type of extracted email:", typeof email);
+
+    // Validate email
+    if (!email) {
+      console.log("❌ Email is null or undefined");
+      return res.status(400).json({
+        error: "Email is required",
+      });
+    }
+
+    if (typeof email !== "string") {
+      console.log("❌ Email is not a string, type:", typeof email);
+      console.log("❌ Email value:", email);
+      return res.status(400).json({
+        error: `Email must be a string, received: ${typeof email}`,
+      });
+    }
+
+    if (!email.trim()) {
+      console.log("❌ Email is empty string");
+      return res.status(400).json({
+        error: "Email cannot be empty",
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log("❌ Invalid email format:", email);
+      return res.status(400).json({
+        error: "Invalid email format",
+      });
+    }
+
+    console.log("✅ Email validation passed:", email);
+
+    // Check if user exists
+    console.log("🔍 Looking for user with email:", email);
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      console.log("❌ User not found for email:", email);
+      return res.status(404).json({
+        error: "User with this email does not exist",
+      });
+    }
+
+    console.log("✅ User found, generating new OTP");
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    console.log(`🔑 Generated new OTP: ${otp} for email: ${email}`);
+
+    // Delete existing OTPs for this email
+    console.log("🗑️ Deleting existing OTPs for email:", email);
+    await PasswordResetToken.destroy({ where: { email } });
+
+    // Create new OTP
+    console.log("💾 Creating new OTP record");
+    await PasswordResetToken.create({
+      email: email,
+      token: otp,
+      expiresAt: expiresAt,
+    });
+
+    console.log("✅ OTP saved to database");
+
+    // Send email with new OTP
+    try {
+      console.log("📧 Sending email to:", email);
+      await sendEmail({
+        to: email,
+        subject: "New Password Reset OTP",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">New Password Reset OTP</h2>
+            <p>A new OTP has been generated for your password reset request:</p>
+            <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
+              <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
+            </div>
+            <p>This OTP is valid for 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+          </div>
+        `,
+      });
+      console.log("✅ Email sent successfully");
+    } catch (emailError) {
+      console.error("❌ Failed to send email:", emailError.message);
+      // Continue even if email fails
+    }
+
+    console.log("✅ OTP resend process completed successfully");
+    res.status(200).json({
+      success: true,
+      message: "New OTP sent to your email",
+      expiresAt: expiresAt.toISOString(),
+    });
+  } catch (error) {
+    console.error("💥 Resend OTP error:", error.message);
+    console.error("💥 Error name:", error.name);
+    console.error("💥 Error stack:", error.stack);
+
+    // Check if it's a Sequelize validation error
+    if (
+      error.name === "SequelizeValidationError" ||
+      error.name === "SequelizeUniqueConstraintError"
+    ) {
+      console.error("💥 Sequelize errors:", error.errors);
+      const errorMessages = error.errors
+        .map((err) => `${err.path}: ${err.message}`)
+        .join(", ");
+      return res.status(400).json({
+        error: `Validation error: ${errorMessages}`,
+      });
+    }
+
+    res.status(500).json({
+      error: error.message || "Failed to resend OTP",
+    });
+  }
+};
+
 // Reset password
 const resetPassword = async (req, res) => {
   try {
@@ -595,6 +744,7 @@ module.exports = {
   generateOTP,
   forgotPassword,
   verifyOTP,
+  resendOTP,
   resetPassword,
   checkPhoneAvailability,
 };
