@@ -1,735 +1,180 @@
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const User = require("../models/mysql/User");
-const Session = require("../models/mongodb/Session");
-const PasswordResetToken = require("../models/mysql/PasswordResetToken");
-const { generateTokens, verifyRefreshToken } = require("../utils/jwt");
-const { sendEmail } = require("../services/emailService");
+// controllers/authController.js
+const AuthService = require("../services/authService");
 
 // 🧩 Register User
-const register = async (req, res) => {
+const register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName, phone } = req.body;
-
-    // Check if email already exists
-    const existingEmail = await User.findOne({ where: { email } });
-    if (existingEmail) {
-      return res.status(400).json({ error: "Email already registered" });
-    }
-
-    // Check if phone already exists (if provided)
-    if (phone) {
-      const existingPhone = await User.findOne({ where: { phone } });
-      if (existingPhone) {
-        return res.status(400).json({ error: "Phone number already in use" });
-      }
-    }
-
-    const user = await User.create({
-      email,
-      password,
-      firstName,
-      lastName,
-      phone: phone || null, // Store null if empty
-    });
-
-    const tokens = generateTokens(user.id, user.role);
-
-    await Session.create({
-      userId: user.id,
-      token: tokens.refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      userAgent: req.get("User-Agent"),
-      ipAddress: req.ip,
-    });
+    const result = await AuthService.registerUser(
+      req.body,
+      req.get("User-Agent"),
+      req.ip
+    );
 
     res.status(201).json({
       message: "User registered successfully",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        role: user.role,
-      },
-      tokens,
+      ...result,
     });
   } catch (error) {
-    console.error("Registration Error:", error.message);
-
-    // Handle unique constraint errors
-    if (error.name === "SequelizeUniqueConstraintError") {
-      const field = error.errors[0]?.path;
-      if (field === "phone") {
-        return res.status(400).json({ error: "Phone number already in use" });
-      }
-      if (field === "email") {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-    }
-
-    res.status(500).json({ error: "Registration failed" });
+    next(error); // Pass to universal error handler
   }
 };
 
 // 🧩 Login User
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    const user = await User.findOne({ where: { email } });
-    if (!user || !(await user.validatePassword(password))) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    const tokens = generateTokens(user.id, user.role);
-
-    await Session.create({
-      userId: user.id,
-      token: tokens.refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      userAgent: req.get("User-Agent"),
-      ipAddress: req.ip,
-    });
+    const result = await AuthService.loginUser(
+      email,
+      password,
+      req.get("User-Agent"),
+      req.ip
+    );
 
     res.json({
       message: "Login successful",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        role: user.role,
-      },
-      tokens,
+      ...result,
     });
   } catch (error) {
-    console.error("Login Error:", error.message);
-    res.status(500).json({ error: "Login failed" });
+    next(error);
   }
 };
 
 // 👤 Get User Profile
-const getProfile = async (req, res) => {
+const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ["password"] },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-    });
+    const result = await AuthService.getProfile(req.user.id);
+    res.json(result);
   } catch (error) {
-    console.error("Get Profile Error:", error.message);
-    res.status(500).json({ error: "Failed to get profile" });
+    next(error);
   }
 };
 
 // ✏️ Update User Profile
-const updateProfile = async (req, res) => {
+const updateProfile = async (req, res, next) => {
   try {
-    const { firstName, lastName, phone } = req.body;
-    const userId = req.user.id;
-
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Check phone uniqueness if phone is being changed
-    if (phone !== undefined && phone !== user.phone) {
-      // If phone is being cleared (set to empty/null)
-      if (!phone || phone === "") {
-        // Allow clearing phone number - no uniqueness check needed
-        console.log(`Clearing phone number for user ${userId}`);
-      } else {
-        // Check if new phone number already exists
-        const existingUser = await User.findOne({
-          where: { phone },
-          attributes: ["id", "email"],
-        });
-
-        if (existingUser && existingUser.id !== userId) {
-          return res.status(400).json({
-            error: "Phone number already in use by another account",
-          });
-        }
-      }
-    }
-
-    // Update only allowed fields
-    const updateData = {};
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) {
-      // Convert empty string to null to avoid unique constraint issues
-      updateData.phone = phone && phone.trim() !== "" ? phone : null;
-    }
-
-    await user.update(updateData);
+    const result = await AuthService.updateProfile(req.user.id, req.body);
 
     res.json({
       message: "Profile updated successfully",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      ...result,
     });
   } catch (error) {
-    console.error("Update Profile Error:", error.message);
-
-    // Handle unique constraint error
-    if (error.name === "SequelizeUniqueConstraintError") {
-      const field = error.errors[0]?.path;
-      if (field === "phone") {
-        return res.status(400).json({
-          error: "Phone number already in use by another account",
-        });
-      }
-    }
-
-    res.status(500).json({ error: "Failed to update profile" });
+    next(error);
   }
 };
 
-// 🔐 Change Password (Improved version)
-const changePassword = async (req, res) => {
+// 🔐 Change Password
+const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id;
-
-    if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({ error: "Both current and new password are required" });
-    }
-
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "New password must be at least 6 characters" });
-    }
-
-    if (currentPassword === newPassword) {
-      return res.status(400).json({
-        error: "New password must be different from current password",
-      });
-    }
-
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const isValidPassword = await user.validatePassword(currentPassword);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: "Current password is incorrect" });
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    // Send email notification
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: "Password Changed Successfully",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Password Changed</h2>
-            <p>Your password was successfully changed on ${new Date().toLocaleDateString()}.</p>
-            <p>If you didn't make this change, please contact support immediately.</p>
-          </div>
-        `,
-      });
-    } catch (emailError) {
-      console.error("Failed to send password change email:", emailError);
-    }
+    await AuthService.changePassword(req.user.id, currentPassword, newPassword);
 
     res.json({
       message: "Password changed successfully",
     });
   } catch (error) {
-    console.error("Change Password Error:", error.message);
-    res.status(500).json({ error: "Failed to change password" });
+    next(error);
   }
 };
 
 // ♻️ Refresh Token
-const refreshToken = async (req, res) => {
+const refreshToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
+    const result = await AuthService.refreshUserSession(refreshToken);
 
-    if (!refreshToken) {
-      return res.status(401).json({ error: "Refresh token required" });
-    }
-
-    const decoded = await verifyRefreshToken(refreshToken);
-    const userId = decoded.id;
-
-    if (!userId) {
-      return res.status(401).json({ error: "Invalid token payload" });
-    }
-
-    const session = await Session.findOne({
-      userId: Number(userId),
-      token: refreshToken,
-    });
-
-    if (!session) {
-      return res.status(401).json({ error: "Invalid refresh token" });
-    }
-
-    const tokens = generateTokens(userId, decoded.role);
-
-    session.token = tokens.refreshToken;
-    session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await session.save();
-
-    res.json({ tokens });
+    res.json(result);
   } catch (error) {
-    console.error("❌ Refresh Token Error:", error.message);
-    res.status(401).json({ error: "Invalid refresh token" });
+    next(error);
   }
 };
 
 // 🚪 Logout User
-const logout = async (req, res) => {
+const logout = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
+    await AuthService.logoutUser(req.user?.id, refreshToken);
 
-    if (!req.user?.id) {
-      return res.status(401).json({ error: "Unauthorized user" });
-    }
-
-    if (!refreshToken) {
-      return res.status(400).json({ error: "Refresh token required" });
-    }
-
-    const session = await Session.findOne({
-      userId: Number(req.user.id),
-      token: refreshToken,
-    });
-
-    if (!session) {
-      return res.status(404).json({
-        error: "Session not found. Please log in again.",
-      });
-    }
-
-    if (session.expiresAt < new Date()) {
-      await Session.deleteOne({ _id: session._id });
-      return res.status(401).json({
-        error: "Session expired. Please log in again.",
-      });
-    }
-
-    await Session.deleteOne({ _id: session._id });
-
-    return res.json({
+    res.json({
       message: "✅ Logged out successfully",
       sessionDeleted: true,
     });
   } catch (error) {
-    console.error("❌ Logout Error:", error.message);
-    return res.status(500).json({ error: "Logout failed" });
+    next(error);
   }
 };
 
-// Generate OTP
-const generateOTP = () => {
-  return crypto.randomInt(100000, 999999).toString();
-};
-
 // Forgot password - Send OTP
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: "User with this email does not exist",
-      });
-    }
-
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await PasswordResetToken.destroy({ where: { email } });
-
-    await PasswordResetToken.create({
-      email,
-      token: otp,
-      expiresAt,
-    });
-
-    await sendEmail({
-      to: email,
-      subject: "Password Reset OTP",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p>Use the OTP below to reset your password:</p>
-          <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
-            <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
-          </div>
-          <p>This OTP is valid for 10 minutes.</p>
-        </div>
-      `,
-    });
+    await AuthService.forgotPassword(email);
 
     res.status(200).json({
       success: true,
       message: "OTP sent to your email",
     });
   } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to process forgot password request",
-    });
+    next(error);
   }
 };
 
 // Verify OTP
-const verifyOTP = async (req, res) => {
+const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-
-    const tokenRecord = await PasswordResetToken.findOne({
-      where: { email, token: otp },
-    });
-
-    if (!tokenRecord) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid OTP",
-      });
-    }
-
-    if (new Date() > tokenRecord.expiresAt) {
-      await PasswordResetToken.destroy({ where: { email, token: otp } });
-      return res.status(400).json({
-        success: false,
-        error: "OTP has expired",
-      });
-    }
-
-    if (tokenRecord.used) {
-      return res.status(400).json({
-        success: false,
-        error: "OTP has already been used",
-      });
-    }
-
-    await tokenRecord.update({ used: true });
-
-    const resetToken = jwt.sign(
-      { email, purpose: "password_reset" },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+    const result = await AuthService.verifyOTP(email, otp);
 
     res.status(200).json({
       success: true,
       message: "OTP verified successfully",
-      resetToken,
+      ...result,
     });
   } catch (error) {
-    console.error("Verify OTP error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to verify OTP",
-    });
+    next(error);
   }
 };
 
-// Resend OTP - Handle both cases
-const resendOTP = async (req, res) => {
+// Resend OTP
+const resendOTP = async (req, res, next) => {
   try {
-    console.log("🔄 Resend OTP endpoint called");
-    console.log("📥 Full request body:", req.body);
+    const { email } = req.body;
+    const result = await AuthService.resendOTP(email);
 
-    let email;
-
-    // Handle both cases:
-    // 1. { email: "value@example.com" } - Correct
-    // 2. { email: { email: "value@example.com" } } - Incorrect (but handle it)
-
-    if (
-      req.body.email &&
-      typeof req.body.email === "object" &&
-      req.body.email.email
-    ) {
-      // Case 2: Double-wrapped email
-      console.log("⚠️  Detected double-wrapped email");
-      email = req.body.email.email;
-    } else {
-      // Case 1: Normal email
-      email = req.body.email;
-    }
-
-    console.log("📥 Extracted email:", email);
-    console.log("📥 Type of extracted email:", typeof email);
-
-    // Validate email
-    if (!email) {
-      console.log("❌ Email is null or undefined");
-      return res.status(400).json({
-        error: "Email is required",
-      });
-    }
-
-    if (typeof email !== "string") {
-      console.log("❌ Email is not a string, type:", typeof email);
-      console.log("❌ Email value:", email);
-      return res.status(400).json({
-        error: `Email must be a string, received: ${typeof email}`,
-      });
-    }
-
-    if (!email.trim()) {
-      console.log("❌ Email is empty string");
-      return res.status(400).json({
-        error: "Email cannot be empty",
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.log("❌ Invalid email format:", email);
-      return res.status(400).json({
-        error: "Invalid email format",
-      });
-    }
-
-    console.log("✅ Email validation passed:", email);
-
-    // Check if user exists
-    console.log("🔍 Looking for user with email:", email);
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      console.log("❌ User not found for email:", email);
-      return res.status(404).json({
-        error: "User with this email does not exist",
-      });
-    }
-
-    console.log("✅ User found, generating new OTP");
-
-    // Generate new OTP
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    console.log(`🔑 Generated new OTP: ${otp} for email: ${email}`);
-
-    // Delete existing OTPs for this email
-    console.log("🗑️ Deleting existing OTPs for email:", email);
-    await PasswordResetToken.destroy({ where: { email } });
-
-    // Create new OTP
-    console.log("💾 Creating new OTP record");
-    await PasswordResetToken.create({
-      email: email,
-      token: otp,
-      expiresAt: expiresAt,
-    });
-
-    console.log("✅ OTP saved to database");
-
-    // Send email with new OTP
-    try {
-      console.log("📧 Sending email to:", email);
-      await sendEmail({
-        to: email,
-        subject: "New Password Reset OTP",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">New Password Reset OTP</h2>
-            <p>A new OTP has been generated for your password reset request:</p>
-            <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
-              <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
-            </div>
-            <p>This OTP is valid for 10 minutes.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-          </div>
-        `,
-      });
-      console.log("✅ Email sent successfully");
-    } catch (emailError) {
-      console.error("❌ Failed to send email:", emailError.message);
-      // Continue even if email fails
-    }
-
-    console.log("✅ OTP resend process completed successfully");
     res.status(200).json({
       success: true,
       message: "New OTP sent to your email",
-      expiresAt: expiresAt.toISOString(),
+      expiresAt: result.expiresAt.toISOString(),
     });
   } catch (error) {
-    console.error("💥 Resend OTP error:", error.message);
-    console.error("💥 Error name:", error.name);
-    console.error("💥 Error stack:", error.stack);
-
-    // Check if it's a Sequelize validation error
-    if (
-      error.name === "SequelizeValidationError" ||
-      error.name === "SequelizeUniqueConstraintError"
-    ) {
-      console.error("💥 Sequelize errors:", error.errors);
-      const errorMessages = error.errors
-        .map((err) => `${err.path}: ${err.message}`)
-        .join(", ");
-      return res.status(400).json({
-        error: `Validation error: ${errorMessages}`,
-      });
-    }
-
-    res.status(500).json({
-      error: error.message || "Failed to resend OTP",
-    });
+    next(error);
   }
 };
 
 // Reset password
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   try {
     const { resetToken, newPassword } = req.body;
-
-    let decoded;
-    try {
-      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid or expired reset token",
-      });
-    }
-
-    if (decoded.purpose !== "password_reset") {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid token purpose",
-      });
-    }
-
-    const { email } = decoded;
-
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found",
-      });
-    }
-
-    // Validate new password
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: "Password must be at least 6 characters",
-      });
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    await PasswordResetToken.destroy({ where: { email } });
-
-    await sendEmail({
-      to: email,
-      subject: "Password Reset Successful",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Successful</h2>
-          <p>Your password has been successfully reset.</p>
-          <p>If you didn't make this change, please contact support immediately.</p>
-        </div>
-      `,
-    });
+    await AuthService.resetPassword(resetToken, newPassword);
 
     res.status(200).json({
       success: true,
       message: "Password reset successfully",
     });
   } catch (error) {
-    console.error("Reset password error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to reset password",
-    });
+    next(error);
   }
 };
 
-// Add this function to check phone availability
-const checkPhoneAvailability = async (req, res) => {
+// Check phone availability
+const checkPhoneAvailability = async (req, res, next) => {
   try {
     const { phone } = req.params;
+    const result = await AuthService.checkPhoneAvailability(phone);
 
-    console.log("🔍 Checking phone availability for:", phone);
-
-    if (!phone || !/^[0-9]{10}$/.test(phone)) {
-      console.log("❌ Invalid phone format:", phone);
-      return res.status(400).json({
-        available: false,
-        error: "Invalid phone format. Must be exactly 10 digits.",
-      });
-    }
-
-    console.log("🔍 Querying database for phone:", phone);
-    const existingUser = await User.findOne({
-      where: { phone },
-      attributes: ["id", "email"],
-    });
-
-    console.log("🔍 Database result:", existingUser ? "Found" : "Not found");
-
-    if (existingUser) {
-      console.log("❌ Phone already exists, user email:", existingUser.email);
-      return res.status(200).json({
-        available: false,
-        error: "Phone number already in use",
-        userId: existingUser.id,
-      });
-    }
-
-    console.log("✅ Phone is available");
-    return res.status(200).json({
-      available: true,
-      message: "Phone number is available",
-    });
+    res.status(200).json(result);
   } catch (error) {
-    console.error("💥 Check Phone Error:", error.message);
-    console.error("💥 Error stack:", error.stack);
-    return res.status(500).json({
-      available: false,
-      error: "Failed to check phone availability: " + error.message,
-    });
+    next(error);
   }
 };
 
@@ -741,7 +186,6 @@ module.exports = {
   changePassword,
   refreshToken,
   logout,
-  generateOTP,
   forgotPassword,
   verifyOTP,
   resendOTP,

@@ -4,6 +4,7 @@ dotenv.config({ quiet: true });
 const express = require("express");
 const { connectMySQL, getSequelize } = require("./config/database");
 const connectMongoDB = require("./config/mongodb");
+const errorHandler = require("./middleware/errorHandler"); // ✅ ADD THIS
 
 const app = express();
 app.use(express.json());
@@ -48,6 +49,16 @@ const startServer = async () => {
     app.use("/api/products", productRoutes);
     app.use("/api/cart", cartRoutes);
     app.use("/api/admin", adminRoutes);
+
+    // ⭐  CATCH-ALL ROUTE FOR 404 ERRORS
+    app.use((req, res, next) => {
+      const error = new Error(`Not Found - ${req.originalUrl}`);
+      error.statusCode = 404;
+      next(error);
+    });
+
+    // ⭐  ADD ERROR HANDLER MIDDLEWARE
+    app.use(errorHandler);
 
     // 6️⃣ Sync MySQL
     const sequelize = getSequelize();

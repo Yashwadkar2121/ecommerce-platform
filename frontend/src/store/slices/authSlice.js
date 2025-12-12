@@ -159,12 +159,12 @@ const authSlice = createSlice({
     error: null,
     isUserLoaded: false,
     forgotPasswordSuccess: false,
-    resendOTPSuccess: false, // Added for resend OTP
+    resendOTPSuccess: false,
     verifyOTPSuccess: false,
     resetPasswordSuccess: false,
     updateSuccess: false,
     changePasswordSuccess: false,
-    resendOTPAttempts: 0, // Track resend attempts
+    resendOTPAttempts: 0,
   },
   reducers: {
     logout: (state) => {
