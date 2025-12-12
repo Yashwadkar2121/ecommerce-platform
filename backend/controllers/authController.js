@@ -1,7 +1,7 @@
 // controllers/authController.js
 const AuthService = require("../services/authService");
 
-// 🧩 Register User
+// Register User
 const register = async (req, res, next) => {
   try {
     const result = await AuthService.registerUser(
@@ -15,11 +15,11 @@ const register = async (req, res, next) => {
       ...result,
     });
   } catch (error) {
-    next(error); // Pass to universal error handler
+    next(error);
   }
 };
 
-// 🧩 Login User
+// Login User
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -39,7 +39,7 @@ const login = async (req, res, next) => {
   }
 };
 
-// 👤 Get User Profile
+// Get User Profile
 const getProfile = async (req, res, next) => {
   try {
     const result = await AuthService.getProfile(req.user.id);
@@ -49,7 +49,7 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-// ✏️ Update User Profile
+// Update User Profile
 const updateProfile = async (req, res, next) => {
   try {
     const result = await AuthService.updateProfile(req.user.id, req.body);
@@ -63,7 +63,7 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-// 🔐 Change Password
+// Change Password
 const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -77,7 +77,7 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-// ♻️ Refresh Token
+// Refresh Token
 const refreshToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
@@ -89,7 +89,7 @@ const refreshToken = async (req, res, next) => {
   }
 };
 
-// 🚪 Logout User
+// Logout User
 const logout = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;

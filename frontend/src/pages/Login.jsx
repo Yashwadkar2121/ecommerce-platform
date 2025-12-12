@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
@@ -19,20 +19,27 @@ const validationRules = {
   },
 };
 
+// Initial state objects
+const initialFormData = {
+  email: "",
+  password: "",
+};
+
+const initialFormErrors = {
+  email: "",
+  password: "",
+};
+
+const initialTouched = {
+  email: false,
+  password: false,
+};
+
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState(initialFormData);
   const [showPassword, setShowPassword] = useState(false);
-  const [formErrors, setFormErrors] = useState({
-    email: "",
-    password: "",
-  });
-  const [touched, setTouched] = useState({
-    email: false,
-    password: false,
-  });
+  const [formErrors, setFormErrors] = useState(initialFormErrors);
+  const [touched, setTouched] = useState(initialTouched);
   const [formSubmitted, setFormSubmitted] = useState(false);
 
   const dispatch = useAppDispatch();
@@ -41,19 +48,20 @@ const Login = () => {
     (state) => state.auth
   );
 
+  // Redirect if authenticated and user data is loaded
   useEffect(() => {
-    // Only redirect if user is loaded and authenticated
     if (isUserLoaded && isAuthenticated) {
-      navigate("/");
+      navigate("/", { replace: true });
     }
   }, [isAuthenticated, navigate, isUserLoaded]);
 
+  // Clear auth error on mount
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
 
   // Validate a single field
-  const validateField = (name, value) => {
+  const validateField = useCallback((name, value) => {
     const rules = validationRules[name];
     if (!rules) return "";
 
@@ -70,10 +78,10 @@ const Login = () => {
     }
 
     return "";
-  };
+  }, []);
 
   // Validate all fields
-  const validateAll = () => {
+  const validateAll = useCallback(() => {
     const errors = {};
     let isValid = true;
 
@@ -85,109 +93,161 @@ const Login = () => {
 
     setFormErrors(errors);
     return isValid;
-  };
+  }, [formData, validateField]);
 
   // Handle field change
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+  const handleChange = useCallback(
+    (e) => {
+      const { name, value } = e.target;
 
-    // Clear server error when user types
-    if (error) {
-      dispatch(clearError());
-    }
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
 
-    // Validate field if it's been touched or form was submitted
-    if (touched[name] || formSubmitted) {
-      setFormErrors({
-        ...formErrors,
-        [name]: validateField(name, value),
-      });
-    }
-  };
+      // Clear server error when user types
+      if (error) {
+        dispatch(clearError());
+      }
+
+      // Validate field if it's been touched or form was submitted
+      if (touched[name] || formSubmitted) {
+        setFormErrors((prev) => ({
+          ...prev,
+          [name]: validateField(name, value),
+        }));
+      }
+    },
+    [error, touched, formSubmitted, dispatch, validateField]
+  );
 
   // Handle blur event
-  const handleBlur = (e) => {
-    const { name } = e.target;
-    setTouched({
-      ...touched,
-      [name]: true,
-    });
+  const handleBlur = useCallback(
+    (e) => {
+      const { name } = e.target;
 
-    // Validate on blur
-    setFormErrors({
-      ...formErrors,
-      [name]: validateField(name, formData[name]),
-    });
-  };
+      setTouched((prev) => ({
+        ...prev,
+        [name]: true,
+      }));
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setFormSubmitted(true);
+      // Validate on blur
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: validateField(name, formData[name]),
+      }));
+    },
+    [formData, validateField]
+  );
 
-    // Mark all fields as touched
-    const allTouched = Object.keys(touched).reduce(
-      (acc, field) => ({
-        ...acc,
-        [field]: true,
-      }),
-      {}
-    );
-    setTouched(allTouched);
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      setFormSubmitted(true);
 
-    if (!validateAll()) {
-      // Focus on first error field
-      const firstErrorField = Object.keys(formErrors).find(
-        (field) => formErrors[field]
+      // Mark all fields as touched
+      const allTouched = Object.keys(touched).reduce(
+        (acc, field) => ({
+          ...acc,
+          [field]: true,
+        }),
+        {}
       );
-      if (firstErrorField) {
-        document.getElementById(firstErrorField)?.focus();
-      }
-      return;
-    }
+      setTouched(allTouched);
 
-    dispatch(loginUser(formData));
-  };
+      if (!validateAll()) {
+        // Focus on first error field
+        const firstErrorField = Object.keys(formErrors).find(
+          (field) => formErrors[field]
+        );
+        if (firstErrorField) {
+          document.getElementById(firstErrorField)?.focus();
+        }
+        return;
+      }
+
+      dispatch(loginUser(formData));
+    },
+    [touched, validateAll, formErrors, formData, dispatch]
+  );
 
   // Helper to check if field has error
-  const hasError = (fieldName) => touched[fieldName] && formErrors[fieldName];
+  const hasError = useCallback(
+    (fieldName) => touched[fieldName] && formErrors[fieldName],
+    [touched, formErrors]
+  );
 
   // Helper to get input classes based on field state
-  const getInputClasses = (fieldName) => {
-    const baseClasses =
-      "w-full px-3 py-2 pl-11 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-1 text-sm transition-colors ";
+  const getInputClasses = useCallback(
+    (fieldName) => {
+      const baseClasses =
+        "w-full px-3 py-2 pl-11 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-1 text-sm transition-colors duration-200";
 
-    if (hasError(fieldName)) {
-      return (
-        baseClasses + "border-red-300 focus:border-red-500 focus:ring-red-200"
-      );
-    }
+      if (hasError(fieldName)) {
+        return (
+          baseClasses +
+          " border-red-300 focus:border-red-500 focus:ring-red-200"
+        );
+      }
 
-    if (
-      touched[fieldName] &&
-      !formErrors[fieldName] &&
-      formData[fieldName].trim()
-    ) {
+      if (
+        touched[fieldName] &&
+        !formErrors[fieldName] &&
+        formData[fieldName].trim()
+      ) {
+        return (
+          baseClasses +
+          " border-green-300 focus:border-primary-500 focus:ring-primary-200"
+        );
+      }
+
       return (
         baseClasses +
-        "border-green-300 focus:border-primary-500 focus:ring-primary-200"
+        " border-gray-300 focus:border-primary-500 focus:ring-primary-200"
       );
-    }
+    },
+    [hasError, touched, formErrors, formData]
+  );
 
-    return (
-      baseClasses +
-      "border-gray-300 focus:border-primary-500 focus:ring-primary-200"
-    );
-  };
+  // Toggle password visibility
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword((prev) => !prev);
+  }, []);
 
-  // ADDED: Show loading spinner while initial user data is loading
+  // Form fields configuration for easier management
+  const formFields = useMemo(
+    () => [
+      {
+        id: "email",
+        label: "Email address",
+        type: "email",
+        placeholder: "Enter your email",
+        icon: Mail,
+        autoComplete: "email",
+        required: true,
+      },
+      {
+        id: "password",
+        label: "Password",
+        type: showPassword ? "text" : "password",
+        placeholder: "Enter your password",
+        icon: Lock,
+        autoComplete: "current-password",
+        required: true,
+        showToggle: true,
+      },
+    ],
+    [showPassword]
+  );
+
+  // Show loading spinner while initial user data is loading
   if (isLoading && !isUserLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -207,7 +267,7 @@ const Login = () => {
             Or{" "}
             <Link
               to="/register"
-              className="font-medium text-primary-600 hover:text-primary-500"
+              className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
             >
               create a new account
             </Link>
@@ -223,123 +283,108 @@ const Login = () => {
       >
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+            {/* Error message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm"
+                role="alert"
+              >
                 {error}
-              </div>
+              </motion.div>
             )}
 
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Email address
-              </label>
-              <div className="mt-1 relative">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={getInputClasses("email")}
-                  placeholder="Enter your email"
-                  aria-invalid={hasError("email")}
-                  aria-describedby={
-                    hasError("email") ? "email-error" : undefined
-                  }
-                />
-                <Mail
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={18}
-                />
-                {hasError("email") && (
-                  <AlertCircle
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
-                    size={18}
-                  />
-                )}
-              </div>
-              {hasError("email") && (
-                <p id="email-error" className="mt-1 text-sm text-red-600">
-                  {formErrors.email}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Password
-              </label>
-              <div className="mt-1 relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={getInputClasses("password")}
-                  placeholder="Enter your password"
-                  aria-invalid={hasError("password")}
-                  aria-describedby={
-                    hasError("password") ? "password-error" : undefined
-                  }
-                />
-                <Lock
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={18}
-                />
-                <button
-                  type="button"
-                  className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+            {/* Form fields */}
+            {formFields.map((field) => (
+              <div key={field.id}>
+                <label
+                  htmlFor={field.id}
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-                {hasError("password") && (
-                  <AlertCircle
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                  {field.label}
+                </label>
+                <div className="relative">
+                  <input
+                    id={field.id}
+                    name={field.id}
+                    type={field.type}
+                    autoComplete={field.autoComplete}
+                    required={field.required}
+                    value={formData[field.id]}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={getInputClasses(field.id)}
+                    placeholder={field.placeholder}
+                    aria-invalid={hasError(field.id)}
+                    aria-describedby={
+                      hasError(field.id) ? `${field.id}-error` : undefined
+                    }
+                  />
+                  <field.icon
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
                     size={18}
                   />
+
+                  {/* Password toggle button */}
+                  {field.showToggle && (
+                    <button
+                      type="button"
+                      className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500 transition-colors"
+                      onClick={togglePasswordVisibility}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  )}
+
+                  {/* Error icon */}
+                  {hasError(field.id) && (
+                    <AlertCircle
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+                      size={18}
+                    />
+                  )}
+                </div>
+                {hasError(field.id) && (
+                  <motion.p
+                    id={`${field.id}-error`}
+                    className="mt-1 text-sm text-red-600"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {formErrors[field.id]}
+                  </motion.p>
                 )}
               </div>
-              {hasError("password") && (
-                <p id="password-error" className="mt-1 text-sm text-red-600">
-                  {formErrors.password}
-                </p>
-              )}
-            </div>
+            ))}
 
+            {/* Forgot password link */}
             <div className="flex items-center justify-end">
               <div className="text-sm">
                 <Link
                   to="/forgot-password"
-                  className="font-medium text-primary-600 hover:text-primary-500"
+                  className="font-medium text-primary-600 hover:text-primary-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
                 >
                   Forgot your password?
                 </Link>
               </div>
             </div>
 
+            {/* Submit button */}
             <div>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-2"
+                className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isLoading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Signing In...
+                  </>
                 ) : (
                   "Sign In"
                 )}

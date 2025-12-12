@@ -8,7 +8,7 @@ const { generateTokens, verifyRefreshToken } = require("../utils/jwt");
 const { sendEmail } = require("./emailService");
 
 class AuthService {
-  // 🧩 Register User
+  // Register User
   async registerUser(userData, userAgent = "", ipAddress = "") {
     const { email, password, firstName, lastName, phone } = userData;
 
@@ -57,7 +57,7 @@ class AuthService {
     };
   }
 
-  // 🧩 Login User
+  // Login User
   async loginUser(email, password, userAgent = "", ipAddress = "") {
     const user = await User.findOne({ where: { email } });
     if (!user || !(await user.validatePassword(password))) {
@@ -91,7 +91,7 @@ class AuthService {
     };
   }
 
-  // 👤 Get User Profile
+  // Get User Profile
   async getProfile(userId) {
     const user = await User.findByPk(userId, {
       attributes: { exclude: ["password"] },
@@ -115,7 +115,7 @@ class AuthService {
     };
   }
 
-  // ✏️ Update User Profile
+  // Update User Profile
   async updateProfile(userId, updateData) {
     const { firstName, lastName, phone } = updateData;
 
@@ -168,7 +168,7 @@ class AuthService {
     };
   }
 
-  // 🔐 Change Password
+  // Change Password
   async changePassword(userId, currentPassword, newPassword) {
     if (!currentPassword || !newPassword) {
       throw new Error("Both current and new password are required");
@@ -213,7 +213,7 @@ class AuthService {
     }
   }
 
-  // ♻️ Refresh Token
+  // Refresh Token
   async refreshUserSession(refreshToken) {
     if (!refreshToken) {
       throw new Error("Refresh token required");
@@ -244,7 +244,7 @@ class AuthService {
     return { tokens };
   }
 
-  // 🚪 Logout User
+  // Logout User
   async logoutUser(userId, refreshToken) {
     if (!userId) {
       throw new Error("Unauthorized user");

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { authService } from "../../services/authService";
 
+// Login User thunk
 export const loginUser = createAsyncThunk(
   "auth/login",
   async ({ email, password }, { rejectWithValue }) => {
@@ -13,6 +14,7 @@ export const loginUser = createAsyncThunk(
   }
 );
 
+// Register User thunk
 export const registerUser = createAsyncThunk(
   "auth/register",
   async (userData, { rejectWithValue }) => {
@@ -38,7 +40,16 @@ export const loadUser = createAsyncThunk(
       // Clear invalid tokens
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
-      return rejectWithValue("Session expired. Please login again.");
+
+      // Use the actual error message for better debugging
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Session expired. Please login again.";
+
+      // console.error("Load user error:", errorMessage); // Optional logging
+
+      return rejectWithValue(errorMessage);
     }
   }
 );
