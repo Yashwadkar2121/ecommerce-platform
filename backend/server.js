@@ -4,7 +4,7 @@ dotenv.config({ quiet: true });
 const express = require("express");
 const { connectMySQL, getSequelize } = require("./config/database");
 const connectMongoDB = require("./config/mongodb");
-const errorHandler = require("./middleware/errorHandler"); // ✅ ADD THIS
+const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 app.use(express.json());
