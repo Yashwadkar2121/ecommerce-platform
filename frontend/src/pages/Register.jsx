@@ -17,90 +17,108 @@ import { registerUser, clearError } from "../store/slices/authSlice";
 import { authService } from "../services/authService";
 import TermsModal from "../components/TermsModal";
 
-// Validation rules
-const validationRules = {
-  firstName: {
-    required: true,
-    minLength: 2,
-    maxLength: 50,
-    pattern: /^[A-Za-zÀ-ÿ\s\-']+$/,
-    message:
-      "First name must contain only letters, spaces, hyphens, or apostrophes",
+// Configuration objects
+const CONFIG = {
+  EMAIL: {
+    DOMAIN_TYPO_MAP: {
+      gmil: "gmail",
+      gmal: "gmail",
+      gmai: "gmail",
+      yaho: "yahoo",
+      yhoo: "yahoo",
+      yaoo: "yahoo",
+      hotmal: "hotmail",
+      outlok: "outlook",
+    },
+    TLD_TYPO_MAP: {
+      con: "com",
+      cpm: "com",
+      cop: "com",
+      om: "com",
+      cm: "com",
+    },
+    COMMON_DOMAINS: [
+      "gmail.com",
+      "yahoo.com",
+      "hotmail.com",
+      "outlook.com",
+      "icloud.com",
+      "aol.com",
+    ],
   },
-  lastName: {
-    required: true,
-    minLength: 2,
-    maxLength: 50,
-    pattern: /^[A-Za-zÀ-ÿ\s\-']+$/,
-    message:
-      "Last name must contain only letters, spaces, hyphens, or apostrophes",
+  VALIDATION: {
+    PATTERNS: {
+      EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      PHONE: /^[0-9]{10}$/,
+      NAME: /^[A-Za-zÀ-ÿ\s\-']+$/,
+      PASSWORD:
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
+    },
+    MESSAGES: {
+      REQUIRED: (field) => `${field} is required`,
+      MIN_LENGTH: (min) => `Minimum ${min} characters required`,
+      MAX_LENGTH: (max) => `Maximum ${max} characters allowed`,
+      PATTERN: (field, msg) => msg || `Invalid ${field.toLowerCase()} format`,
+      PASSWORD:
+        "Must contain uppercase, lowercase, number, and special character (@$!%*?&)",
+    },
   },
-  email: {
-    required: true,
-    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    message: "Please enter a valid email address",
-  },
-  phone: {
-    required: true,
-    pattern: /^[0-9]{10}$/,
-    message: "Phone number must be exactly 10 digits",
-  },
-  password: {
-    required: true,
-    minLength: 6,
-    maxLength: 100,
-    pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{6,}$/,
-    message:
-      "Password must be at least 6 characters with 1 uppercase, 1 lowercase, and 1 number",
-  },
-  confirmPassword: {
-    required: true,
-    message: "Please confirm your password",
+  DEBOUNCE: {
+    PHONE: 800,
+    EMAIL: 600,
   },
 };
 
-// Initial state objects
-const initialFormData = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phone: "",
-  password: "",
-  confirmPassword: "",
-};
-
-const initialFormErrors = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phone: "",
-  password: "",
-  confirmPassword: "",
-  terms: "",
-};
-
-const initialTouched = {
-  firstName: false,
-  lastName: false,
-  email: false,
-  phone: false,
-  password: false,
-  confirmPassword: false,
-  terms: false,
+// Initial states
+const INITIAL_STATE = {
+  FORM_DATA: {
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  },
+  FORM_ERRORS: {
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    terms: "",
+  },
+  TOUCHED: {
+    firstName: false,
+    lastName: false,
+    email: false,
+    phone: false,
+    password: false,
+    confirmPassword: false,
+    terms: false,
+  },
 };
 
 const Register = () => {
-  const [formData, setFormData] = useState(initialFormData);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formErrors, setFormErrors] = useState(initialFormErrors);
-  const [touched, setTouched] = useState(initialTouched);
+  // State management
+  const [formData, setFormData] = useState(INITIAL_STATE.FORM_DATA);
+  const [showPassword, setShowPassword] = useState({
+    password: false,
+    confirm: false,
+  });
+  const [formErrors, setFormErrors] = useState(INITIAL_STATE.FORM_ERRORS);
+  const [touched, setTouched] = useState(INITIAL_STATE.TOUCHED);
   const [showTerms, setShowTerms] = useState(false);
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [phoneChecking, setPhoneChecking] = useState(false);
-  const [phoneAvailable, setPhoneAvailable] = useState(null);
-  const [phoneStatusMessage, setPhoneStatusMessage] = useState("");
+  const [loading, setLoading] = useState({ phone: false, email: false });
+  const [availability, setAvailability] = useState({
+    phone: null,
+    email: null,
+  });
+  const [statusMessage, setStatusMessage] = useState({ phone: "", email: "" });
+  const [emailSuggestions, setEmailSuggestions] = useState([]);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
+  // Redux and routing
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isLoading, error, isAuthenticated } = useAppSelector(
@@ -109,9 +127,7 @@ const Register = () => {
 
   // Redirect if authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/", { replace: true });
-    }
+    if (isAuthenticated) navigate("/", { replace: true });
   }, [isAuthenticated, navigate]);
 
   // Clear auth error on mount
@@ -119,333 +135,334 @@ const Register = () => {
     dispatch(clearError());
   }, [dispatch]);
 
-  // Format phone input to only allow digits and limit to 10
-  const formatPhone = useCallback((value) => {
-    const digits = value.replace(/\D/g, "");
-    return digits.slice(0, 10);
-  }, []);
-
-  // Validate a single field
-  const validateField = useCallback(
-    (name, value, confirmValue = null) => {
-      const rules = validationRules[name];
-      if (!rules) return "";
-
-      if (rules.required && !value.trim()) {
-        return "This field is required";
-      }
-
-      if (rules.minLength && value.length < rules.minLength) {
-        return `Minimum ${rules.minLength} characters required`;
-      }
-
-      if (rules.maxLength && value.length > rules.maxLength) {
-        return `Maximum ${rules.maxLength} characters allowed`;
-      }
-
-      if (rules.pattern && !rules.pattern.test(value)) {
-        return rules.message;
-      }
-
-      if (name === "confirmPassword") {
-        const passwordValue = confirmValue || formData.password;
-        if (value !== passwordValue) {
-          return "Passwords do not match";
-        }
-      }
-
-      return "";
-    },
-    [formData.password]
+  // Format phone input
+  const formatPhone = useCallback(
+    (value) => value.replace(/\D/g, "").slice(0, 10),
+    []
   );
 
-  // Check phone availability
-  const checkPhoneAvailability = useCallback(async (phone) => {
-    if (!phone || phone.length !== 10 || !/^[0-9]{10}$/.test(phone)) {
-      setPhoneAvailable(null);
-      setPhoneStatusMessage(
-        phone.length > 0
-          ? `${phone.length}/10 digits`
-          : "Enter exactly 10 digits"
-      );
+  // Email validation with typo detection
+  const validateEmail = useCallback((email) => {
+    if (!email?.trim()) return CONFIG.VALIDATION.MESSAGES.REQUIRED("Email");
+
+    if (!CONFIG.VALIDATION.PATTERNS.EMAIL.test(email)) {
+      return "Please enter a valid email address (e.g., name@example.com)";
+    }
+
+    const [localPart, domain] = email.toLowerCase().split("@");
+    const domainParts = domain.split(".");
+    const domainName = domainParts[0];
+    const tld = domainParts.slice(1).join(".");
+
+    // Check for domain typos
+    if (CONFIG.EMAIL.DOMAIN_TYPO_MAP[domainName]) {
+      return `Did you mean ${localPart}@${CONFIG.EMAIL.DOMAIN_TYPO_MAP[domainName]}.${tld}?`;
+    }
+
+    // Check for TLD typos
+    if (CONFIG.EMAIL.TLD_TYPO_MAP[tld]) {
+      return `Did you mean ${localPart}@${domainName}.${CONFIG.EMAIL.TLD_TYPO_MAP[tld]}?`;
+    }
+
+    // Basic domain validation
+    if (domain.includes("..")) return "Email contains consecutive dots";
+    if (domainName.length < 2) return "Domain name too short";
+    if (tld.length < 2 || tld.length > 6) return "Invalid domain extension";
+
+    return "";
+  }, []);
+
+  // Generate email suggestions
+  const generateSuggestions = useCallback((email) => {
+    if (!email?.includes("@")) {
+      setEmailSuggestions([]);
       return;
     }
 
-    setPhoneChecking(true);
-    setPhoneStatusMessage("Checking availability...");
+    const [localPart, domain] = email.split("@");
+    const suggestions = new Set();
+
+    // Domain typo corrections
+    if (CONFIG.EMAIL.DOMAIN_TYPO_MAP[domain]) {
+      suggestions.add(
+        `${localPart}@${CONFIG.EMAIL.DOMAIN_TYPO_MAP[domain]}.com`
+      );
+    }
+
+    // Common domain alternatives
+    CONFIG.EMAIL.COMMON_DOMAINS.forEach((commonDomain) => {
+      if (commonDomain !== domain)
+        suggestions.add(`${localPart}@${commonDomain}`);
+    });
+
+    setEmailSuggestions(Array.from(suggestions).slice(0, 3));
+  }, []);
+
+  // Check availability (generic for both email and phone)
+  const checkAvailability = useCallback(async (type, value) => {
+    const isEmail = type === "email";
+    const pattern = isEmail
+      ? CONFIG.VALIDATION.PATTERNS.EMAIL
+      : CONFIG.VALIDATION.PATTERNS.PHONE;
+
+    if (!value || !pattern.test(value)) {
+      setAvailability((prev) => ({ ...prev, [type]: null }));
+      setStatusMessage((prev) => ({
+        ...prev,
+        [type]: isEmail ? "Enter a valid email" : `${value.length}/10 digits`,
+      }));
+      return;
+    }
+
+    setLoading((prev) => ({ ...prev, [type]: true }));
+    setStatusMessage((prev) => ({ ...prev, [type]: "Checking..." }));
 
     try {
-      const response = await authService.checkPhoneAvailability(phone);
-      const data = response.data;
+      const service = isEmail
+        ? authService.checkEmailAvailability
+        : authService.checkPhoneAvailability;
+      const response = await service(value);
+      const { available, error: apiError } = response.data;
+      const defaultMsg = isEmail
+        ? "Email already registered"
+        : "Phone already in use";
 
-      if (data.available === true) {
-        setPhoneAvailable(true);
-        setPhoneStatusMessage("Phone number is available");
-        // Clear phone error if previously set
-        setFormErrors((prev) => ({
-          ...prev,
-          phone: "",
-        }));
+      setAvailability((prev) => ({ ...prev, [type]: available }));
+      setStatusMessage((prev) => ({
+        ...prev,
+        [type]: available ? "Available" : apiError || defaultMsg,
+      }));
+
+      if (available) {
+        setFormErrors((prev) => ({ ...prev, [type]: "" }));
       } else {
-        setPhoneAvailable(false);
-        const errorMsg = data.error || "Phone number already in use";
-        setPhoneStatusMessage(errorMsg);
-        // Set form error
-        setFormErrors((prev) => ({
-          ...prev,
-          phone: errorMsg,
-        }));
+        setFormErrors((prev) => ({ ...prev, [type]: apiError || defaultMsg }));
       }
-    } catch (error) {
-      console.error("Phone check error:", error);
-      setPhoneAvailable(null);
-      setPhoneStatusMessage("Unable to check phone availability");
+    } catch {
+      setAvailability((prev) => ({ ...prev, [type]: null }));
+      setStatusMessage((prev) => ({ ...prev, [type]: "Check failed" }));
     } finally {
-      setPhoneChecking(false);
+      setLoading((prev) => ({ ...prev, [type]: false }));
     }
   }, []);
 
-  // Debounced phone check effect
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (formData.phone.length === 10 && /^[0-9]{10}$/.test(formData.phone)) {
-        checkPhoneAvailability(formData.phone);
-      } else {
-        setPhoneAvailable(null);
-        setPhoneStatusMessage(
-          formData.phone.length > 0
-            ? `${formData.phone.length}/10 digits`
-            : "Enter exactly 10 digits"
-        );
+  // Field validation
+  const validateField = useCallback(
+    (name, value, confirmValue = null) => {
+      const field = name.toLowerCase();
+
+      // Required check
+      if (!value?.trim() && field !== "phone") {
+        return CONFIG.VALIDATION.MESSAGES.REQUIRED(name);
       }
-    }, 800);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [formData.phone, checkPhoneAvailability]);
+      // Field-specific validation
+      switch (field) {
+        case "email":
+          return validateEmail(value);
 
-  // Handle field change
+        case "password":
+          if (!CONFIG.VALIDATION.PATTERNS.PASSWORD.test(value)) {
+            return CONFIG.VALIDATION.MESSAGES.PASSWORD;
+          }
+          return "";
+
+        case "confirmpassword":
+          return value !== (confirmValue || formData.password)
+            ? "Passwords do not match"
+            : "";
+
+        case "phone":
+          return !CONFIG.VALIDATION.PATTERNS.PHONE.test(value)
+            ? "Must be exactly 10 digits"
+            : "";
+
+        default: // firstName, lastName
+          if (value.length < 2) return CONFIG.VALIDATION.MESSAGES.MIN_LENGTH(2);
+          if (value.length > 50)
+            return CONFIG.VALIDATION.MESSAGES.MAX_LENGTH(50);
+          if (!CONFIG.VALIDATION.PATTERNS.NAME.test(value)) {
+            return "Only letters, spaces, hyphens, and apostrophes allowed";
+          }
+          return "";
+      }
+    },
+    [validateEmail, formData.password]
+  );
+
+  // Debounced availability checks
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (CONFIG.VALIDATION.PATTERNS.EMAIL.test(formData.email)) {
+        generateSuggestions(formData.email);
+        checkAvailability("email", formData.email);
+      } else {
+        setEmailSuggestions([]);
+        setAvailability((prev) => ({ ...prev, email: null }));
+        setStatusMessage((prev) => ({
+          ...prev,
+          email: formData.email ? "Enter a valid email" : "",
+        }));
+      }
+    }, CONFIG.DEBOUNCE.EMAIL);
+
+    return () => clearTimeout(timer);
+  }, [formData.email, generateSuggestions, checkAvailability]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (CONFIG.VALIDATION.PATTERNS.PHONE.test(formData.phone)) {
+        checkAvailability("phone", formData.phone);
+      } else {
+        setAvailability((prev) => ({ ...prev, phone: null }));
+        setStatusMessage((prev) => ({
+          ...prev,
+          phone: formData.phone ? `${formData.phone.length}/10 digits` : "",
+        }));
+      }
+    }, CONFIG.DEBOUNCE.PHONE);
+
+    return () => clearTimeout(timer);
+  }, [formData.phone, checkAvailability]);
+
+  // Field handlers
   const handleChange = useCallback(
     (e) => {
       const { name, value } = e.target;
-      let formattedValue = value;
+      const formattedValue = name === "phone" ? formatPhone(value) : value;
 
-      // Format phone input
-      if (name === "phone") {
-        formattedValue = formatPhone(value);
-        // Reset availability check when phone changes
-        if (value !== formData.phone) {
-          setPhoneAvailable(null);
-          setPhoneStatusMessage(`${formattedValue.length}/10 digits`);
-        }
+      // Reset suggestions for email
+      if (name === "email" && value !== formData.email) {
+        setEmailSuggestions([]);
       }
 
-      setFormData((prev) => ({
-        ...prev,
-        [name]: formattedValue,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: formattedValue }));
 
-      // Clear server error when user types
-      if (error) {
-        dispatch(clearError());
-      }
+      // Clear server error on typing
+      if (error) dispatch(clearError());
 
-      // Validate field if it's been touched or form was submitted
-      if (touched[name] || formSubmitted) {
+      // Real-time validation
+      if (touched[name]) {
+        const errorMsg = validateField(name, formattedValue);
         setFormErrors((prev) => ({
           ...prev,
-          [name]: validateField(name, formattedValue),
-          // Clear confirm password error if password changes
-          ...(name === "password" && formData.confirmPassword
-            ? {
-                confirmPassword: validateField(
-                  "confirmPassword",
-                  formData.confirmPassword,
-                  formattedValue
-                ),
-              }
-            : {}),
+          [name]: errorMsg,
+          ...(name === "password" && {
+            confirmPassword: validateField(
+              "confirmPassword",
+              formData.confirmPassword,
+              formattedValue
+            ),
+          }),
         }));
       }
     },
-    [
-      error,
-      touched,
-      formSubmitted,
-      formData,
-      dispatch,
-      formatPhone,
-      validateField,
-    ]
+    [error, touched, formData, dispatch, formatPhone, validateField]
   );
 
-  // Handle blur event
   const handleBlur = useCallback(
     (e) => {
       const { name } = e.target;
-
-      setTouched((prev) => ({
-        ...prev,
-        [name]: true,
-      }));
-
-      // Validate on blur
-      setFormErrors((prev) => ({
-        ...prev,
-        [name]: validateField(name, formData[name]),
-      }));
-
-      // Check phone availability when user leaves phone field
-      if (name === "phone" && formData.phone.length === 10) {
-        checkPhoneAvailability(formData.phone);
-      }
+      setTouched((prev) => ({ ...prev, [name]: true }));
+      const errorMsg = validateField(name, formData[name]);
+      setFormErrors((prev) => ({ ...prev, [name]: errorMsg }));
     },
-    [formData, validateField, checkPhoneAvailability]
+    [formData, validateField]
   );
 
-  // Handle terms checkbox
+  const handleSuggestionClick = useCallback(
+    (suggestion) => {
+      setFormData((prev) => ({ ...prev, email: suggestion }));
+      setTouched((prev) => ({ ...prev, email: true }));
+      setEmailSuggestions([]);
+      const error = validateField("email", suggestion);
+      setFormErrors((prev) => ({ ...prev, email: error }));
+      if (!error) checkAvailability("email", suggestion);
+    },
+    [validateField, checkAvailability]
+  );
+
   const handleTermsChange = useCallback((e) => {
     const isChecked = e.target.checked;
-    setTouched((prev) => ({
-      ...prev,
-      terms: true,
-    }));
+    setTermsAccepted(isChecked);
+    setTouched((prev) => ({ ...prev, terms: true }));
     setFormErrors((prev) => ({
       ...prev,
-      terms: isChecked ? "" : "You must agree to the terms and conditions",
+      terms: isChecked ? "" : "You must agree to the terms",
     }));
   }, []);
 
-  // Validate all fields
-  const validateAll = useCallback(() => {
+  // Form validation and submission
+  const validateForm = useCallback(() => {
     const errors = {};
     let isValid = true;
 
-    // Validate form fields
+    // Validate all fields
     Object.keys(formData).forEach((field) => {
       const error = validateField(field, formData[field]);
       errors[field] = error;
       if (error) isValid = false;
     });
 
-    // Validate terms checkbox
-    if (!touched.terms) {
-      errors.terms = "You must agree to the terms and conditions";
+    // Validate terms
+    if (!termsAccepted) {
+      errors.terms = "You must agree to the terms";
       isValid = false;
     }
 
-    // Check phone availability before submitting
-    if (formData.phone && phoneAvailable === false) {
-      errors.phone = "Phone number already in use";
-      isValid = false;
-    }
-
-    // Validate phone format
-    if (formData.phone && !/^[0-9]{10}$/.test(formData.phone)) {
-      errors.phone = "Phone number must be exactly 10 digits";
-      isValid = false;
-    }
+    // Check availability
+    if (availability.phone === false) errors.phone = "Phone already in use";
+    if (availability.email === false) errors.email = "Email already registered";
 
     setFormErrors(errors);
     return isValid;
-  }, [formData, touched.terms, phoneAvailable, validateField]);
+  }, [formData, termsAccepted, availability, validateField]);
 
   const handleSubmit = useCallback(
     (e) => {
       e.preventDefault();
-      setFormSubmitted(true);
 
       // Mark all fields as touched
-      const allTouched = Object.keys(touched).reduce(
-        (acc, field) => ({
-          ...acc,
-          [field]: true,
-        }),
-        {}
+      setTouched(
+        Object.keys(touched).reduce(
+          (acc, field) => ({ ...acc, [field]: true }),
+          {}
+        )
       );
-      setTouched(allTouched);
 
-      if (!validateAll()) {
-        // Focus on first error field
-        const firstErrorField = Object.keys(formErrors).find(
+      if (!validateForm()) {
+        const firstError = Object.keys(formErrors).find(
           (field) => formErrors[field]
         );
-        if (firstErrorField && firstErrorField !== "terms") {
-          document.getElementById(firstErrorField)?.focus();
-        }
+        if (firstError) document.getElementById(firstError)?.focus();
         return;
       }
 
       const { ...registerData } = formData;
       dispatch(registerUser(registerData));
     },
-    [touched, validateAll, formErrors, formData, dispatch]
+    [touched, validateForm, formErrors, formData, dispatch]
   );
 
-  // Helper to check if field has error
+  // Helper functions
   const hasError = useCallback(
-    (fieldName) => touched[fieldName] && formErrors[fieldName],
+    (field) => touched[field] && formErrors[field],
     [touched, formErrors]
   );
 
-  // Helper to get input classes based on field state
   const getInputClasses = useCallback(
-    (fieldName) => {
-      const baseClasses =
+    (field) => {
+      const base =
         "appearance-none block w-full px-3 py-2 pl-10 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors duration-200";
 
-      if (hasError(fieldName)) {
-        return (
-          baseClasses +
-          " border-red-300 focus:border-red-500 focus:ring-red-200"
-        );
-      }
-
-      if (touched[fieldName] && !formErrors[fieldName]) {
-        return (
-          baseClasses +
-          " border-green-300 focus:border-primary-500 focus:ring-primary-200"
-        );
-      }
-
-      return (
-        baseClasses +
-        " border-gray-300 focus:border-primary-500 focus:ring-primary-200"
-      );
+      if (hasError(field))
+        return `${base} border-red-300 focus:border-red-500 focus:ring-red-200`;
+      if (touched[field] && !formErrors[field])
+        return `${base} border-green-300 focus:border-primary-500 focus:ring-primary-200`;
+      return `${base} border-gray-300 focus:border-primary-500 focus:ring-primary-200`;
     },
     [hasError, touched, formErrors]
   );
-
-  // Helper to get phone status icon and color
-  const getPhoneStatusIcon = useMemo(() => {
-    if (phoneChecking) {
-      return (
-        <div className="flex items-center text-gray-500">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-2"></div>
-          Checking...
-        </div>
-      );
-    }
-
-    if (phoneAvailable === true) {
-      return (
-        <div className="flex items-center text-green-600">
-          <CheckCircle className="h-4 w-4 mr-2" />
-          {phoneStatusMessage}
-        </div>
-      );
-    }
-
-    if (phoneAvailable === false) {
-      return (
-        <div className="flex items-center text-red-600">
-          <XCircle className="h-4 w-4 mr-2" />
-          {phoneStatusMessage}
-        </div>
-      );
-    }
-
-    return <div className="text-gray-500">{phoneStatusMessage}</div>;
-  }, [phoneChecking, phoneAvailable, phoneStatusMessage]);
 
   // Password validation status
   const passwordValidation = useMemo(
@@ -454,6 +471,7 @@ const Register = () => {
       hasLowercase: /[a-z]/.test(formData.password),
       hasUppercase: /[A-Z]/.test(formData.password),
       hasNumber: /\d/.test(formData.password),
+      hasSpecial: /[@$!%*?&]/.test(formData.password),
       passwordsMatch:
         formData.password === formData.confirmPassword &&
         formData.confirmPassword.length > 0,
@@ -461,7 +479,7 @@ const Register = () => {
     [formData.password, formData.confirmPassword]
   );
 
-  // Memoized form fields to prevent unnecessary re-renders
+  // Form fields configuration
   const formFields = useMemo(
     () => [
       {
@@ -486,7 +504,6 @@ const Register = () => {
         type: "email",
         placeholder: "Enter your email",
         icon: Mail,
-        autoComplete: "email",
         gridCols: "col-span-2",
       },
       {
@@ -495,34 +512,51 @@ const Register = () => {
         type: "tel",
         placeholder: "1234567890",
         icon: Phone,
-        autoComplete: "tel",
         gridCols: "col-span-2",
       },
       {
         id: "password",
         label: "Password",
-        type: showPassword ? "text" : "password",
+        type: showPassword.password ? "text" : "password",
         placeholder: "Enter your password",
         icon: Lock,
-        autoComplete: "new-password",
-        showToggle: true,
-        onToggle: () => setShowPassword(!showPassword),
         gridCols: "col-span-2",
       },
       {
         id: "confirmPassword",
         label: "Confirm Password",
-        type: showConfirmPassword ? "text" : "password",
-        placeholder: "Confirm your password",
+        type: showPassword.confirm ? "text" : "password",
+        placeholder: "Confirm password",
         icon: Lock,
-        autoComplete: "new-password",
-        showToggle: true,
-        onToggle: () => setShowConfirmPassword(!showConfirmPassword),
         gridCols: "col-span-2",
       },
     ],
-    [showPassword, showConfirmPassword]
+    [showPassword]
   );
+
+  // Status icons
+  const StatusIcon = ({ type }) => {
+    const isChecking = loading[type];
+    const isAvailable = availability[type];
+
+    if (isChecking)
+      return (
+        <div className="absolute right-10 top-1/2 -translate-y-1/2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" />
+        </div>
+      );
+
+    if (isAvailable === true)
+      return (
+        <CheckCircle className="absolute right-10 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+      );
+    if (isAvailable === false)
+      return (
+        <XCircle className="absolute right-10 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+      );
+
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -541,7 +575,7 @@ const Register = () => {
               to="/login"
               className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
             >
-              sign in to your existing account
+              sign in
             </Link>
           </p>
         </div>
@@ -562,223 +596,232 @@ const Register = () => {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              {formFields.map((field) => (
-                <div key={field.id} className={field.gridCols}>
-                  <label
-                    htmlFor={field.id}
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    {field.label}
-                  </label>
-                  <div className="relative">
-                    <input
-                      id={field.id}
-                      name={field.id}
-                      type={field.type}
-                      autoComplete={field.autoComplete}
-                      required
-                      value={formData[field.id]}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={getInputClasses(field.id)}
-                      placeholder={field.placeholder}
-                      aria-invalid={hasError(field.id)}
-                      aria-describedby={
-                        hasError(field.id) ? `${field.id}-error` : undefined
-                      }
-                      maxLength={field.id === "phone" ? 10 : undefined}
-                    />
-                    <field.icon
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
-                      size={18}
-                    />
-
-                    {/* Phone status indicators */}
-                    {field.id === "phone" && phoneChecking && (
-                      <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                      </div>
-                    )}
-                    {field.id === "phone" &&
-                      !phoneChecking &&
-                      phoneAvailable === true && (
-                        <CheckCircle
-                          className="absolute right-10 top-1/2 transform -translate-y-1/2 text-green-500"
-                          size={18}
-                        />
-                      )}
-                    {field.id === "phone" &&
-                      !phoneChecking &&
-                      phoneAvailable === false && (
-                        <XCircle
-                          className="absolute right-10 top-1/2 transform -translate-y-1/2 text-red-500"
-                          size={18}
-                        />
-                      )}
-
-                    {/* Show toggle button for password fields */}
-                    {field.showToggle && (
-                      <button
-                        type="button"
-                        className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-500 transition-colors"
-                        onClick={field.onToggle}
-                        aria-label={
-                          field.type === "text"
-                            ? "Hide password"
-                            : "Show password"
-                        }
-                      >
-                        {field.type === "text" ? (
-                          <EyeOff size={18} />
-                        ) : (
-                          <Eye size={18} />
-                        )}
-                      </button>
-                    )}
-
-                    {/* Error icon */}
-                    {hasError(field.id) && (
-                      <AlertCircle
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500"
+              {formFields.map(
+                ({ id, label, type, placeholder, icon: Icon, gridCols }) => (
+                  <div key={id} className={gridCols}>
+                    <label
+                      htmlFor={id}
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      {label}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id={id}
+                        name={id}
+                        type={type}
+                        value={formData[id]}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={getInputClasses(id)}
+                        placeholder={placeholder}
+                        aria-invalid={hasError(id)}
+                        maxLength={id === "phone" ? 10 : undefined}
+                      />
+                      <Icon
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                         size={18}
                       />
+
+                      {/* Status indicators */}
+                      {(id === "email" || id === "phone") && (
+                        <StatusIcon type={id} />
+                      )}
+
+                      {/* Password toggle */}
+                      {(id === "password" || id === "confirmPassword") && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPassword((prev) => ({
+                              ...prev,
+                              [id === "password" ? "password" : "confirm"]:
+                                !prev[
+                                  id === "password" ? "password" : "confirm"
+                                ],
+                            }))
+                          }
+                          className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500"
+                          aria-label={
+                            type === "text" ? "Hide password" : "Show password"
+                          }
+                        >
+                          {type === "text" ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      )}
+
+                      {/* Error icon */}
+                      {hasError(id) && (
+                        <AlertCircle
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500"
+                          size={18}
+                        />
+                      )}
+                    </div>
+
+                    {/* Error message */}
+                    {hasError(id) && (
+                      <p
+                        id={`${id}-error`}
+                        className="mt-1 text-sm text-red-600 animate-fadeIn"
+                      >
+                        {formErrors[id]}
+                      </p>
+                    )}
+
+                    {/* Status message */}
+                    {(id === "phone" || id === "email") &&
+                      !hasError(id) &&
+                      statusMessage[id] && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {statusMessage[id]}
+                        </p>
+                      )}
+
+                    {/* Email suggestions */}
+                    {id === "email" && emailSuggestions.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-gray-500">Did you mean:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {emailSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => handleSuggestionClick(suggestion)}
+                              className="text-xs text-primary-600 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 px-2 py-1 rounded transition-colors"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {hasError(field.id) && (
-                    <p
-                      id={`${field.id}-error`}
-                      className="mt-1 text-sm text-red-600 animate-fadeIn"
-                    >
-                      {formErrors[field.id]}
-                    </p>
-                  )}
-
-                  {/* Phone status message */}
-                  {field.id === "phone" && !hasError(field.id) && (
-                    <div className="mt-1 text-sm">{getPhoneStatusIcon}</div>
-                  )}
-                </div>
-              ))}
+                )
+              )}
             </div>
 
-            {/* Password validation hints */}
-            {touched.password && !hasError("password") && (
+            {/* Password validation */}
+            {(touched.password || formData.password) && (
               <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-xs">
+                <p className="font-medium text-gray-700 mb-1">
+                  Password must contain:
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {Object.entries(passwordValidation)
+                    .slice(0, 4)
+                    .map(([key, isValid]) => (
+                      <p
+                        key={key}
+                        className={`flex items-center ${
+                          isValid ? "text-green-600" : "text-red-500"
+                        }`}
+                      >
+                        <span className="mr-1">{isValid ? "✓" : "○"}</span>
+                        {key === "hasLowercase" && "Lowercase letter"}
+                        {key === "hasUppercase" && "Uppercase letter"}
+                        {key === "hasNumber" && "Number"}
+                        {key === "hasSpecial" && "Special character"}
+                      </p>
+                    ))}
+                </div>
                 <p
-                  className={`font-medium ${
+                  className={`mt-1 flex items-center ${
                     passwordValidation.minLength
                       ? "text-green-600"
-                      : "text-gray-500"
+                      : "text-red-500"
                   }`}
                 >
-                  {passwordValidation.minLength ? "✓" : "○"} At least 6
-                  characters
+                  <span className="mr-1">
+                    {passwordValidation.minLength ? "✓" : "○"}
+                  </span>
+                  At least 6 characters (Current: {formData.password.length})
                 </p>
-                <p
-                  className={`${
-                    passwordValidation.hasLowercase
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {passwordValidation.hasLowercase ? "✓" : "○"} Contains
-                  lowercase letter
-                </p>
-                <p
-                  className={`${
-                    passwordValidation.hasUppercase
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {passwordValidation.hasUppercase ? "✓" : "○"} Contains
-                  uppercase letter
-                </p>
-                <p
-                  className={`${
-                    passwordValidation.hasNumber
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {passwordValidation.hasNumber ? "✓" : "○"} Contains number
-                </p>
+                {formErrors.password && (
+                  <p className="mt-2 text-red-600 font-medium bg-red-50 p-2 rounded">
+                    {formErrors.password}
+                  </p>
+                )}
               </div>
             )}
 
             {/* Password match indicator */}
-            {touched.confirmPassword &&
-              formData.confirmPassword.length > 0 &&
-              !hasError("confirmPassword") && (
-                <p className="text-sm flex items-center animate-fadeIn">
+            {formData.confirmPassword && (
+              <div
+                className={`p-2 rounded-lg text-sm ${
+                  passwordValidation.passwordsMatch
+                    ? "bg-green-50 text-green-600"
+                    : "bg-red-50 text-red-600"
+                }`}
+              >
+                <div className="flex items-center">
                   {passwordValidation.passwordsMatch ? (
                     <>
-                      <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
-                      <span className="text-green-600">Passwords match</span>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      <span>Passwords match</span>
                     </>
                   ) : (
-                    <span className="text-gray-500">
-                      Passwords do not match
-                    </span>
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      <span>Passwords do not match</span>
+                    </>
                   )}
-                </p>
-              )}
+                </div>
+              </div>
+            )}
 
-            {/* Terms and Conditions */}
+            {/* Terms */}
             <div className="flex items-start">
               <input
                 id="terms"
-                name="terms"
                 type="checkbox"
-                required
+                checked={termsAccepted}
                 onChange={handleTermsChange}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-1 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-1"
                 aria-invalid={hasError("terms")}
               />
-              <div className="ml-2">
-                <label
-                  htmlFor="terms"
-                  className={`block text-sm ${
-                    hasError("terms") ? "text-red-600" : "text-gray-900"
-                  }`}
-                >
-                  I agree to the{" "}
-                  <button
-                    type="button"
-                    onClick={() => setShowTerms(true)}
-                    className="text-primary-600 hover:text-primary-500 underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
-                  >
-                    Terms and Conditions
-                  </button>
-                </label>
-                {hasError("terms") && (
-                  <p className="mt-1 text-sm text-red-600 animate-fadeIn">
-                    {formErrors.terms}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Submit button */}
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading || phoneChecking}
-                className="w-full flex justify-center items-center py-3 px-4 border rounded-lg shadow-sm text-sm font-medium text-black border-gray-600 bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+              <label
+                htmlFor="terms"
+                className={`ml-2 text-sm ${
+                  hasError("terms") ? "text-red-600" : "text-gray-900"
+                }`}
               >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
-                    Creating Account...
-                  </>
-                ) : (
-                  "Create Account"
-                )}
-              </button>
+                I agree to the{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowTerms(true)}
+                  className="text-primary-600 hover:text-primary-500 underline"
+                >
+                  Terms and Conditions
+                </button>
+              </label>
             </div>
+            {hasError("terms") && (
+              <p className="mt-1 text-sm text-red-600">{formErrors.terms}</p>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading || loading.phone || loading.email}
+              className="w-full flex justify-center items-center py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                  Creating Account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </button>
           </form>
+          <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
         </div>
-        <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
       </motion.div>
     </div>
   );

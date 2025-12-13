@@ -29,6 +29,8 @@ export default defineConfig([
           varsIgnorePattern: "^(motion|[A-Z_])", // Specifically allow 'motion' or uppercase/underscore
         },
       ],
+      // Add this new rule for React components
+      "react/jsx-uses-vars": "error",
     },
   },
 ]);
