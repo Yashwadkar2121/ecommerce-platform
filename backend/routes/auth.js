@@ -13,7 +13,7 @@ const {
   resendOTP,
   resetPassword,
   checkPhoneAvailability,
-  
+  checkEmailAvailability,
 } = require("../controllers/authController");
 const { authenticate } = require("../middleware/auth");
 const {
@@ -32,8 +32,9 @@ router.post("/reset-password", resetPassword);
 router.post("/refresh-token", refreshToken);
 router.post("/logout", authenticate, logout);
 
-// Phone availability check (public)
+// Phone & Email availability check (public)
 router.get("/check-phone/:phone", checkPhoneAvailability);
+router.get("/check-email/:email", checkEmailAvailability);
 
 // Protected routes (require authentication)
 router.get("/profile", authenticate, getProfile);

@@ -76,6 +76,10 @@ export const authService = {
     return api.get(`/auth/check-phone/${phone}`);
   },
 
+  checkEmailAvailability: (email) => {
+    return api.get(`/auth/check-email/${encodeURIComponent(email)}`);
+  },
+
   getNewAccessToken: (refreshToken) => {
     return api.post("/auth/refresh-token", { refreshToken });
   },

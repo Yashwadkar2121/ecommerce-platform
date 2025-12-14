@@ -476,6 +476,52 @@ class AuthService {
       message: "Phone number is available",
     };
   }
+
+  // Check email availability
+  async checkEmailAvailability(email) {
+    if (!email) {
+      return {
+        available: false,
+        error: "Email is required",
+      };
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return {
+        available: false,
+        error: "Invalid email format",
+      };
+    }
+
+    // Check if email is too long
+    if (email.length > 255) {
+      return {
+        available: false,
+        error: "Email is too long (max 255 characters)",
+      };
+    }
+
+    const existingUser = await User.findOne({
+      where: { email },
+      attributes: ["id", "email", "firstName"],
+    });
+
+    if (existingUser) {
+      return {
+        available: false,
+        error: "Email already registered",
+        userId: existingUser.id,
+        userEmail: existingUser.email,
+      };
+    }
+
+    return {
+      available: true,
+      message: "Email is available",
+    };
+  }
 }
 
 module.exports = new AuthService();

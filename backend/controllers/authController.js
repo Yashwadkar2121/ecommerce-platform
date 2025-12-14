@@ -178,6 +178,19 @@ const checkPhoneAvailability = async (req, res, next) => {
   }
 };
 
+// Check email availability
+const checkEmailAvailability = async (req, res, next) => {
+  try {
+    const { email } = req.params;
+    const decodedEmail = decodeURIComponent(email);
+    const result = await AuthService.checkEmailAvailability(decodedEmail);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -191,4 +204,5 @@ module.exports = {
   resendOTP,
   resetPassword,
   checkPhoneAvailability,
+  checkEmailAvailability,
 };

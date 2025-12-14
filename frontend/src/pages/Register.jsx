@@ -99,6 +99,18 @@ const INITIAL_STATE = {
   },
 };
 
+// Error message mapping for user-friendly messages
+const ERROR_MESSAGES = {
+  "Network Error": "Unable to connect. Please check your internet connection.",
+  Timeout: "Request timed out. Please try again.",
+  "Email already registered":
+    "This email is already registered. Please use a different email or try logging in.",
+  "Phone already in use": "This phone number is already registered.",
+  "Invalid credentials": "Invalid email or password. Please try again.",
+  "Session expired": "Your session has expired. Please log in again.",
+  default: "An unexpected error occurred. Please try again.",
+};
+
 const Register = () => {
   // State management
   const [formData, setFormData] = useState(INITIAL_STATE.FORM_DATA);
@@ -117,6 +129,7 @@ const Register = () => {
   const [statusMessage, setStatusMessage] = useState({ phone: "", email: "" });
   const [emailSuggestions, setEmailSuggestions] = useState([]);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redux and routing
   const dispatch = useAppDispatch();
@@ -172,7 +185,7 @@ const Register = () => {
     return "";
   }, []);
 
-  // Generate email suggestions
+  // Generate email suggestions with XSS protection
   const generateSuggestions = useCallback((email) => {
     if (!email?.includes("@")) {
       setEmailSuggestions([]);
@@ -180,19 +193,23 @@ const Register = () => {
     }
 
     const [localPart, domain] = email.split("@");
+    // Sanitize inputs to prevent XSS
+    const sanitizedLocalPart = localPart.replace(/[<>]/g, "");
+    const sanitizedDomain = domain.replace(/[<>]/g, "");
+
     const suggestions = new Set();
 
     // Domain typo corrections
-    if (CONFIG.EMAIL.DOMAIN_TYPO_MAP[domain]) {
+    if (CONFIG.EMAIL.DOMAIN_TYPO_MAP[sanitizedDomain]) {
       suggestions.add(
-        `${localPart}@${CONFIG.EMAIL.DOMAIN_TYPO_MAP[domain]}.com`
+        `${sanitizedLocalPart}@${CONFIG.EMAIL.DOMAIN_TYPO_MAP[sanitizedDomain]}.com`
       );
     }
 
     // Common domain alternatives
     CONFIG.EMAIL.COMMON_DOMAINS.forEach((commonDomain) => {
-      if (commonDomain !== domain)
-        suggestions.add(`${localPart}@${commonDomain}`);
+      if (commonDomain !== sanitizedDomain)
+        suggestions.add(`${sanitizedLocalPart}@${commonDomain}`);
     });
 
     setEmailSuggestions(Array.from(suggestions).slice(0, 3));
@@ -354,6 +371,13 @@ const Register = () => {
               formattedValue
             ),
           }),
+          ...(name === "confirmPassword" && {
+            confirmPassword: validateField(
+              "confirmPassword",
+              formattedValue,
+              formData.password
+            ),
+          }),
         }));
       }
     },
@@ -372,12 +396,14 @@ const Register = () => {
 
   const handleSuggestionClick = useCallback(
     (suggestion) => {
-      setFormData((prev) => ({ ...prev, email: suggestion }));
+      // Sanitize suggestion to prevent XSS
+      const sanitized = suggestion.replace(/[<>]/g, "");
+      setFormData((prev) => ({ ...prev, email: sanitized }));
       setTouched((prev) => ({ ...prev, email: true }));
       setEmailSuggestions([]);
-      const error = validateField("email", suggestion);
+      const error = validateField("email", sanitized);
       setFormErrors((prev) => ({ ...prev, email: error }));
-      if (!error) checkAvailability("email", suggestion);
+      if (!error) checkAvailability("email", sanitized);
     },
     [validateField, checkAvailability]
   );
@@ -411,37 +437,142 @@ const Register = () => {
     }
 
     // Check availability
-    if (availability.phone === false) errors.phone = "Phone already in use";
-    if (availability.email === false) errors.email = "Email already registered";
+    if (availability.phone === false) {
+      errors.phone = "Phone number already registered";
+      isValid = false;
+    }
+    if (availability.email === false) {
+      errors.email = "Email already registered";
+      isValid = false;
+    }
+
+    // Password confirmation validation (redundant check)
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+      isValid = false;
+    }
+
+    // Password strength validation
+    if (!CONFIG.VALIDATION.PATTERNS.PASSWORD.test(formData.password)) {
+      errors.password = CONFIG.VALIDATION.MESSAGES.PASSWORD;
+      isValid = false;
+    }
 
     setFormErrors(errors);
     return isValid;
   }, [formData, termsAccepted, availability, validateField]);
 
+  // Final validation checklist before submission
+  const performFinalValidation = useCallback(() => {
+    const issues = [];
+
+    // Check all required fields
+    if (!formData.firstName.trim()) issues.push("First name");
+    if (!formData.lastName.trim()) issues.push("Last name");
+    if (!formData.email.trim()) issues.push("Email");
+    if (!formData.phone.trim()) issues.push("Phone");
+    if (!formData.password) issues.push("Password");
+
+    // Check password strength
+    if (!CONFIG.VALIDATION.PATTERNS.PASSWORD.test(formData.password)) {
+      issues.push("Password strength requirements");
+    }
+
+    // Check passwords match
+    if (formData.password !== formData.confirmPassword) {
+      issues.push("Password confirmation");
+    }
+
+    // Check terms
+    if (!termsAccepted) issues.push("Terms and conditions");
+
+    // Check availability
+    if (availability.phone === false || availability.email === false) {
+      issues.push("Account availability");
+    }
+
+    return issues;
+  }, [formData, termsAccepted, availability]);
+
   const handleSubmit = useCallback(
-    (e) => {
+    async (e) => {
       e.preventDefault();
 
-      // Mark all fields as touched
-      setTouched(
-        Object.keys(touched).reduce(
-          (acc, field) => ({ ...acc, [field]: true }),
-          {}
-        )
-      );
+      if (isSubmitting) return;
+      setIsSubmitting(true);
 
+      // Mark all fields as touched
+      const allTouched = Object.keys(touched).reduce(
+        (acc, field) => ({ ...acc, [field]: true }),
+        {}
+      );
+      setTouched(allTouched);
+
+      // Validate form - stop if invalid
       if (!validateForm()) {
-        const firstError = Object.keys(formErrors).find(
+        // Find and focus first error
+        const errorFields = Object.keys(formErrors).filter(
           (field) => formErrors[field]
         );
-        if (firstError) document.getElementById(firstError)?.focus();
+        if (errorFields.length > 0) {
+          document.getElementById(errorFields[0])?.focus();
+        }
+        setIsSubmitting(false);
         return;
       }
 
-      const { ...registerData } = formData;
-      dispatch(registerUser(registerData));
+      // Double-check availability before submission
+      if (availability.phone === false || availability.email === false) {
+        setFormErrors((prev) => ({
+          ...prev,
+          phone: availability.phone === false ? "Phone already registered" : "",
+          email: availability.email === false ? "Email already registered" : "",
+        }));
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Run final validation checklist
+      const validationIssues = performFinalValidation();
+      if (validationIssues.length > 0) {
+        setFormErrors((prev) => ({
+          ...prev,
+          _form: `Please fix the following: ${validationIssues.join(", ")}`,
+        }));
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        // Prepare registration data with trimming
+        const registrationData = {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim().toLowerCase(),
+          phone: formData.phone,
+          password: formData.password,
+        };
+
+        await dispatch(registerUser(registrationData)).unwrap();
+
+        // Success - form will be reset by redirect
+      } catch (error) {
+        // Error handling is already in Redux state
+        console.error("Registration failed:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
     },
-    [touched, validateForm, formErrors, formData, dispatch]
+    [
+      touched,
+      validateForm,
+      formErrors,
+      availability,
+      formData,
+      dispatch,
+      performFinalValidation,
+      isSubmitting,
+    ]
   );
 
   // Helper functions
@@ -558,6 +689,11 @@ const Register = () => {
     return null;
   };
 
+  // Get user-friendly error message
+  const getErrorMessage = (error) => {
+    return ERROR_MESSAGES[error] || error || ERROR_MESSAGES.default;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <motion.div
@@ -591,7 +727,7 @@ const Register = () => {
           <form className="space-y-6" onSubmit={handleSubmit} noValidate>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm animate-fadeIn">
-                {error}
+                {getErrorMessage(error)}
               </div>
             )}
 
@@ -713,7 +849,9 @@ const Register = () => {
                 </p>
                 <div className="grid grid-cols-2 gap-1">
                   {Object.entries(passwordValidation)
-                    .slice(0, 4)
+                    .filter(
+                      ([key]) => !["minLength", "passwordsMatch"].includes(key)
+                    )
                     .map(([key, isValid]) => (
                       <p
                         key={key}
@@ -721,7 +859,7 @@ const Register = () => {
                           isValid ? "text-green-600" : "text-red-500"
                         }`}
                       >
-                        <span className="mr-1">{isValid ? "✓" : "○"}</span>
+                        <span className="mr-1">{isValid ? "✓" : "✗"}</span>
                         {key === "hasLowercase" && "Lowercase letter"}
                         {key === "hasUppercase" && "Uppercase letter"}
                         {key === "hasNumber" && "Number"}
@@ -737,7 +875,7 @@ const Register = () => {
                   }`}
                 >
                   <span className="mr-1">
-                    {passwordValidation.minLength ? "✓" : "○"}
+                    {passwordValidation.minLength ? "✓" : "✗"}
                   </span>
                   At least 6 characters (Current: {formData.password.length})
                 </p>
@@ -807,10 +945,12 @@ const Register = () => {
             {/* Submit */}
             <button
               type="submit"
-              disabled={isLoading || loading.phone || loading.email}
-              className="w-full flex justify-center items-center py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={
+                isLoading || loading.phone || loading.email || isSubmitting
+              }
+              className="w-full flex justify-center items-center py-3 px-4 bg-primary-600 hover:bg-primary-700 text-black font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {isLoading || isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
                   Creating Account...
