@@ -6,6 +6,7 @@ const Session = require("../models/mongodb/Session");
 const PasswordResetToken = require("../models/mysql/PasswordResetToken");
 const { generateTokens, verifyRefreshToken } = require("../utils/jwt");
 const { sendEmail } = require("./emailService");
+const { Op } = require("sequelize"); // Import Sequelize operators
 
 class AuthService {
   // Register User
@@ -276,177 +277,324 @@ class AuthService {
     return crypto.randomInt(100000, 999999).toString();
   }
 
-  // Forgot password - Send OTP
-  async forgotPassword(email) {
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      throw new Error("User with this email does not exist");
-    }
-
-    const otp = this.generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await PasswordResetToken.destroy({ where: { email } });
-
-    await PasswordResetToken.create({
-      email,
-      token: otp,
-      expiresAt,
-    });
-
-    await sendEmail({
-      to: email,
-      subject: "Password Reset OTP",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p>Use the OTP below to reset your password:</p>
-          <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
-            <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
-          </div>
-          <p>This OTP is valid for 10 minutes.</p>
-        </div>
-      `,
-    });
-  }
-
-  // Verify OTP
+  // Verify OTP - FIXED VERSION
   async verifyOTP(email, otp) {
-    const tokenRecord = await PasswordResetToken.findOne({
-      where: { email, token: otp },
-    });
-
-    if (!tokenRecord) {
-      throw new Error("Invalid OTP");
-    }
-
-    if (new Date() > tokenRecord.expiresAt) {
-      await PasswordResetToken.destroy({ where: { email, token: otp } });
-      throw new Error("OTP has expired");
-    }
-
-    if (tokenRecord.used) {
-      throw new Error("OTP has already been used");
-    }
-
-    await tokenRecord.update({ used: true });
-
-    const resetToken = jwt.sign(
-      { email, purpose: "password_reset" },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
-
-    return { resetToken };
-  }
-
-  // Resend OTP
-  async resendOTP(email) {
-    // Validate email
-    if (!email) {
-      throw new Error("Email is required");
-    }
-
-    if (typeof email !== "string") {
-      throw new Error(`Email must be a string, received: ${typeof email}`);
-    }
-
-    if (!email.trim()) {
-      throw new Error("Email cannot be empty");
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      throw new Error("Invalid email format");
-    }
-
-    // Check if user exists
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      throw new Error("User with this email does not exist");
-    }
-
-    // Generate new OTP
-    const otp = this.generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    // Delete existing OTPs for this email
-    await PasswordResetToken.destroy({ where: { email } });
-
-    // Create new OTP
-    await PasswordResetToken.create({
-      email: email,
-      token: otp,
-      expiresAt: expiresAt,
-    });
-
-    // Send email with new OTP
     try {
-      await sendEmail({
-        to: email,
-        subject: "New Password Reset OTP",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">New Password Reset OTP</h2>
-            <p>A new OTP has been generated for your password reset request:</p>
-            <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
-              <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
-            </div>
-            <p>This OTP is valid for 10 minutes.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-          </div>
-        `,
+      console.log(`🔍 Verifying OTP for email: ${email}, OTP: ${otp}`);
+
+      // Validate inputs
+      if (!email || !otp) {
+        throw new Error("Email and OTP are required");
+      }
+
+      // Find the token record with additional logging
+      const tokenRecord = await PasswordResetToken.findOne({
+        where: {
+          email: email.trim().toLowerCase(), // Normalize email
+          token: otp.trim(), // Trim whitespace from OTP
+        },
       });
-    } catch (emailError) {
-      console.error("Failed to send email:", emailError.message);
-      // Continue even if email fails
-    }
 
-    return { expiresAt };
+      console.log(`📊 OTP Record found: ${!!tokenRecord}`);
+      if (tokenRecord) {
+        console.log(`📅 OTP expires at: ${tokenRecord.expiresAt}`);
+        console.log(`⏰ Current time: ${new Date()}`);
+        console.log(`✅ OTP used status: ${tokenRecord.used}`);
+      }
+
+      if (!tokenRecord) {
+        // Check if any OTP exists for this email (for debugging)
+        const anyToken = await PasswordResetToken.findOne({
+          where: { email: email.trim().toLowerCase() },
+        });
+        if (anyToken) {
+          console.log(
+            `ℹ️ Found OTP for email but different code: ${anyToken.token}`
+          );
+          console.log(`ℹ️ That OTP expires at: ${anyToken.expiresAt}`);
+        } else {
+          console.log(`❌ No OTP found for email: ${email}`);
+        }
+        throw new Error("Invalid OTP");
+      }
+
+      // Check if OTP is expired
+      if (new Date() > tokenRecord.expiresAt) {
+        console.log(`⏰ OTP expired at: ${tokenRecord.expiresAt}`);
+        // Clean up expired OTP
+        await PasswordResetToken.destroy({ where: { email, token: otp } });
+        throw new Error("OTP has expired. Please request a new one.");
+      }
+
+      // Check if OTP has already been used
+      if (tokenRecord.used) {
+        console.log(`⚠️ OTP already used`);
+        throw new Error("OTP has already been used. Please request a new one.");
+      }
+
+      // Mark OTP as used
+      await tokenRecord.update({ used: true });
+      console.log(`✅ OTP marked as used`);
+
+      // Generate reset token
+      const resetToken = jwt.sign(
+        {
+          email: email.trim().toLowerCase(),
+          purpose: "password_reset",
+          timestamp: Date.now(),
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "15m" }
+      );
+
+      console.log(`✅ Reset token generated for: ${email}`);
+
+      return {
+        resetToken,
+        message: "OTP verified successfully",
+      };
+    } catch (error) {
+      console.error(`❌ OTP Verification Error: ${error.message}`);
+      throw error;
+    }
   }
 
-  // Reset password
-  async resetPassword(resetToken, newPassword) {
-    let decoded;
+  // Resend OTP - FIXED VERSION
+  async resendOTP(email) {
     try {
-      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+      console.log(`🔄 Resending OTP for email: ${email}`);
+
+      // Validate email
+      if (!email) {
+        throw new Error("Email is required");
+      }
+
+      if (typeof email !== "string") {
+        throw new Error(`Email must be a string, received: ${typeof email}`);
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) {
+        throw new Error("Email cannot be empty");
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        throw new Error("Invalid email format");
+      }
+
+      // Check if user exists
+      const user = await User.findOne({ where: { email: normalizedEmail } });
+      if (!user) {
+        throw new Error("User with this email does not exist");
+      }
+
+      console.log(`✅ User found: ${user.email}`);
+
+      // Generate new OTP
+      const otp = this.generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      console.log(`🔑 Generated OTP: ${otp}, Expires: ${expiresAt}`);
+
+      // Delete existing OTPs for this email
+      const deletedCount = await PasswordResetToken.destroy({
+        where: { email: normalizedEmail },
+      });
+      console.log(`🗑️ Deleted ${deletedCount} old OTPs`);
+
+      // Create new OTP
+      await PasswordResetToken.create({
+        email: normalizedEmail,
+        token: otp,
+        expiresAt: expiresAt,
+        used: false,
+      });
+
+      console.log(`💾 New OTP saved to database`);
+
+      // Send email with new OTP
+      try {
+        await sendEmail({
+          to: normalizedEmail,
+          subject: "New Password Reset OTP",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">New Password Reset OTP</h2>
+              <p>A new OTP has been generated for your password reset request:</p>
+              <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
+                <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
+              </div>
+              <p>This OTP is valid for 10 minutes.</p>
+              <p>If you didn't request this, please ignore this email.</p>
+            </div>
+          `,
+        });
+        console.log(`📧 Email sent successfully to: ${normalizedEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send email:", emailError.message);
+        // Don't throw error - OTP is saved, just email failed
+      }
+
+      return {
+        expiresAt,
+        message: "New OTP sent successfully",
+      };
     } catch (error) {
-      throw new Error("Invalid or expired reset token");
+      console.error(`❌ Resend OTP Error: ${error.message}`);
+      throw error;
     }
+  }
 
-    if (decoded.purpose !== "password_reset") {
-      throw new Error("Invalid token purpose");
+  // Forgot password - Send OTP (with improvements)
+  async forgotPassword(email) {
+    try {
+      console.log(`📧 Forgot password request for: ${email}`);
+
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const user = await User.findOne({ where: { email: normalizedEmail } });
+      if (!user) {
+        console.log(`❌ User not found: ${normalizedEmail}`);
+        // Don't tell the user the email doesn't exist (security)
+        return {
+          message: "If an account exists with this email, an OTP will be sent",
+        };
+      }
+
+      console.log(`✅ User found: ${user.id} - ${user.email}`);
+
+      const otp = this.generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      console.log(`🔑 Generated OTP: ${otp}, Expires: ${expiresAt}`);
+
+      // Delete existing OTPs for this email
+      const deletedCount = await PasswordResetToken.destroy({
+        where: { email: normalizedEmail },
+      });
+      console.log(`🗑️ Deleted ${deletedCount} old OTPs`);
+
+      // Create new OTP
+      await PasswordResetToken.create({
+        email: normalizedEmail,
+        token: otp,
+        expiresAt,
+        used: false,
+      });
+
+      console.log(`💾 OTP saved to database`);
+
+      // Send email with OTP
+      try {
+        await sendEmail({
+          to: normalizedEmail,
+          subject: "Password Reset OTP",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">Password Reset Request</h2>
+              <p>Use the OTP below to reset your password:</p>
+              <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
+                <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
+              </div>
+              <p>This OTP is valid for 10 minutes.</p>
+              <p>If you didn't request this password reset, please ignore this email.</p>
+            </div>
+          `,
+        });
+        console.log(`📧 Email sent successfully to: ${normalizedEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send email:", emailError.message);
+        // Continue even if email fails
+      }
+
+      return {
+        message: "OTP sent successfully",
+        expiresAt,
+      };
+    } catch (error) {
+      console.error(`❌ Forgot Password Error: ${error.message}`);
+      throw error;
     }
+  }
 
-    const { email } = decoded;
+  // Reset password - FIXED VERSION
+  async resetPassword(resetToken, newPassword) {
+    try {
+      console.log(`🔑 Resetting password with token`);
 
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      throw new Error("User not found");
+      let decoded;
+      try {
+        decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+        console.log(`✅ Token decoded successfully for: ${decoded.email}`);
+      } catch (error) {
+        console.error(`❌ Token verification failed: ${error.message}`);
+        throw new Error("Invalid or expired reset token");
+      }
+
+      if (decoded.purpose !== "password_reset") {
+        console.error(`❌ Invalid token purpose: ${decoded.purpose}`);
+        throw new Error("Invalid token purpose");
+      }
+
+      const { email } = decoded;
+      const normalizedEmail = email.trim().toLowerCase();
+
+      console.log(`🔍 Looking for user: ${normalizedEmail}`);
+
+      const user = await User.findOne({ where: { email: normalizedEmail } });
+      if (!user) {
+        console.error(`❌ User not found: ${normalizedEmail}`);
+        throw new Error("User not found");
+      }
+
+      console.log(`✅ User found: ${user.id}`);
+
+      // Validate new password
+      if (newPassword.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
+      // Update password
+      user.password = newPassword;
+      await user.save();
+      console.log(`✅ Password updated for user: ${user.id}`);
+
+      // Clean up all OTPs for this email
+      await PasswordResetToken.destroy({ where: { email: normalizedEmail } });
+      console.log(`🗑️ Cleared OTPs for email: ${normalizedEmail}`);
+
+      // Send confirmation email
+      try {
+        await sendEmail({
+          to: normalizedEmail,
+          subject: "Password Reset Successful",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">Password Reset Successful</h2>
+              <p>Your password has been successfully reset.</p>
+              <p>If you didn't make this change, please contact support immediately.</p>
+            </div>
+          `,
+        });
+        console.log(`📧 Confirmation email sent to: ${normalizedEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send confirmation email:", emailError.message);
+        // Don't throw error - password was reset successfully
+      }
+
+      return {
+        message: "Password reset successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+      };
+    } catch (error) {
+      console.error(`❌ Reset Password Error: ${error.message}`);
+      throw error;
     }
-
-    // Validate new password
-    if (newPassword.length < 6) {
-      throw new Error("Password must be at least 6 characters");
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    await PasswordResetToken.destroy({ where: { email } });
-
-    await sendEmail({
-      to: email,
-      subject: "Password Reset Successful",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Successful</h2>
-          <p>Your password has been successfully reset.</p>
-          <p>If you didn't make this change, please contact support immediately.</p>
-        </div>
-      `,
-    });
   }
 
   // Check phone availability

@@ -164,7 +164,7 @@ const authSlice = createSlice({
   initialState: {
     user: null,
     token: localStorage.getItem("token"),
-    resetToken: null,
+    // resetToken: null,
     isAuthenticated: !!localStorage.getItem("token"),
     isLoading: false,
     error: null,
@@ -362,7 +362,8 @@ const authSlice = createSlice({
       .addCase(verifyOTP.fulfilled, (state, action) => {
         state.isLoading = false;
         state.verifyOTPSuccess = true;
-        state.resetToken = action.payload.resetToken;
+        state.error = null;
+        // state.resetToken = action.payload.resetToken;
         // Reset resend attempts when OTP is verified
         state.resendOTPAttempts = 0;
       })

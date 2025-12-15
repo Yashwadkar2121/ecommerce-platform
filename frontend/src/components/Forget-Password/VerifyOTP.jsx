@@ -6,9 +6,9 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { verifyOTP, clearError, resendOTP } from "../../store/slices/authSlice";
 
 const OTP_LENGTH = 6;
-const INITIAL_TIMER = 600; // 10 minutes in seconds for OTP validity
-const MAX_VERIFICATION_ATTEMPTS = 3; // Limit for OTP verification attempts
-const RESEND_COOLDOWN = 30; // 30 seconds cooldown for resend
+const INITIAL_TIMER = 600;
+const MAX_VERIFICATION_ATTEMPTS = 3;
+const RESEND_COOLDOWN = 30;
 
 const VerifyOTP = () => {
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
@@ -21,14 +21,14 @@ const VerifyOTP = () => {
   const [redirecting, setRedirecting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [showResendSuccess, setShowResendSuccess] = useState(false);
+  const [resetToken, setResetToken] = useState(null); // LOCAL STATE
+
   const inputRefs = useRef([]);
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const { isLoading, error, resetToken } = useAppSelector(
-    (state) => state.auth
-  );
+  const { isLoading, error } = useAppSelector((state) => state.auth);
 
   // Get email from URL query params
   const queryParams = new URLSearchParams(location.search);
@@ -61,40 +61,24 @@ const VerifyOTP = () => {
     }
   }, [resendCooldown]);
 
-  // Show success message on component mount (coming from ForgotPassword)
+  // Reset all state when email changes
   useEffect(() => {
-    if (email) {
-      setShowSuccessMessage(true);
-      const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [email]);
-
-  // Watch for resetToken and navigate when it's available
-  useEffect(() => {
-    if (resetToken && !redirecting) {
-      setRedirecting(true);
-
-      // Add a small delay for better UX
-      setTimeout(() => {
-        navigate("/reset-password", {
-          state: {
-            resetToken,
-            email,
-          },
-        });
-      }, 1000);
-    }
-  }, [resetToken, navigate, email, redirecting]);
+    setOtp(Array(OTP_LENGTH).fill(""));
+    setTimer(INITIAL_TIMER);
+    setVerificationAttempts(0);
+    setResendCooldown(0);
+    setErrorMessage("");
+    setShowSuccessMessage(false);
+    setRedirecting(false);
+    setShowResendSuccess(false);
+    setResetToken(null); // Clear local resetToken
+    dispatch(clearError());
+  }, [email, dispatch]);
 
   const handleOtpChange = useCallback((index, value) => {
-    // Only allow numbers
     if (value && !/^\d+$/.test(value)) return;
 
     if (value.length > 1) {
-      // Handle paste
       const pastedValues = value
         .split("")
         .slice(0, OTP_LENGTH)
@@ -105,18 +89,15 @@ const VerifyOTP = () => {
       });
       setOtp(newOtp);
 
-      // Focus last input
       const lastIndex = Math.min(pastedValues.length - 1, OTP_LENGTH - 1);
       inputRefs.current[lastIndex]?.focus();
     } else {
-      // Handle single digit input
       setOtp((prevOtp) => {
         const newOtp = [...prevOtp];
         newOtp[index] = value;
         return newOtp;
       });
 
-      // Auto-focus next input
       if (value && index < OTP_LENGTH - 1) {
         setTimeout(() => {
           inputRefs.current[index + 1]?.focus();
@@ -128,15 +109,12 @@ const VerifyOTP = () => {
   const handleKeyDown = useCallback(
     (index, e) => {
       if (e.key === "Backspace" && !otp[index] && index > 0) {
-        // Move to previous input on backspace
         setTimeout(() => {
           inputRefs.current[index - 1]?.focus();
         }, 10);
       } else if (e.key === "ArrowLeft" && index > 0) {
-        // Move left with arrow key
         inputRefs.current[index - 1]?.focus();
       } else if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) {
-        // Move right with arrow key
         inputRefs.current[index + 1]?.focus();
       }
     },
@@ -160,7 +138,6 @@ const VerifyOTP = () => {
       return;
     }
 
-    // Check verification attempts limit
     if (verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
       setErrorMessage(
         `Maximum verification attempts (${MAX_VERIFICATION_ATTEMPTS}) reached. Please request a new OTP.`
@@ -172,26 +149,37 @@ const VerifyOTP = () => {
     setRedirecting(false);
 
     try {
-      await dispatch(verifyOTP({ email, otp: otpString })).unwrap();
+      // Verify OTP and get resetToken in response
+      const result = await dispatch(
+        verifyOTP({ email, otp: otpString })
+      ).unwrap();
+
+      // Store resetToken locally, NOT in Redux
+      const token = result.resetToken; // Adjust based on your API response
+      setResetToken(token);
 
       // Reset verification attempts on success
       setVerificationAttempts(0);
 
       // Show success message
       setShowSuccessMessage(true);
+
+      // Redirect after showing success message
       setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 2000);
+        navigate("/reset-password", {
+          state: {
+            resetToken: token,
+            email,
+          },
+        });
+      }, 1000);
     } catch (error) {
-      // Increment verification attempts on error
       const newAttempts = verificationAttempts + 1;
       setVerificationAttempts(newAttempts);
 
-      // Clear OTP on error
       setOtp(Array(OTP_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
 
-      // Show attempt limit message if reached
       if (newAttempts >= MAX_VERIFICATION_ATTEMPTS) {
         setErrorMessage(
           `Maximum verification attempts reached. Please request a new OTP.`
@@ -210,28 +198,19 @@ const VerifyOTP = () => {
     dispatch(clearError());
 
     try {
-      // Call the resend OTP API
       await dispatch(resendOTP({ email })).unwrap();
 
-      // Reset OTP timer to 10 minutes
       setTimer(INITIAL_TIMER);
-
-      // Clear OTP fields
       setOtp(Array(OTP_LENGTH).fill(""));
-
-      // Reset verification attempts
       setVerificationAttempts(0);
-
-      // Set resend cooldown
+      setResetToken(null); // Clear any existing token
       setResendCooldown(RESEND_COOLDOWN);
       setResendEnabled(false);
 
-      // Focus first input
       setTimeout(() => {
         inputRefs.current[0]?.focus();
       }, 100);
 
-      // Show resend success message
       setShowResendSuccess(true);
       setTimeout(() => {
         setShowResendSuccess(false);
@@ -246,11 +225,16 @@ const VerifyOTP = () => {
   };
 
   const handleUseDifferentEmail = () => {
-    navigate("/forgot-password");
+    dispatch(clearError());
+    navigate("/forgot-password", {
+      state: { from: "verify-otp" },
+      replace: true,
+    });
   };
 
   const handleBackToLogin = () => {
-    navigate("/login");
+    dispatch(clearError());
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -272,7 +256,6 @@ const VerifyOTP = () => {
             </span>
           </div>
 
-          {/* Verification attempts counter */}
           {verificationAttempts > 0 && (
             <div
               className={`mt-2 text-sm ${
@@ -300,36 +283,22 @@ const VerifyOTP = () => {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {/* Success Message for OTP verification */}
+          {/* REMOVED the resetToken useEffect redirect logic */}
+
           {showSuccessMessage && (
             <div className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm animate-fade-in">
               <div className="flex items-center">
                 <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-                <span>
-                  {redirecting
-                    ? "OTP verified! Redirecting to reset password..."
-                    : "OTP verified successfully!"}
-                </span>
+                <span>OTP verified! Redirecting to reset password...</span>
               </div>
             </div>
           )}
 
-          {/* Success Message for OTP resend */}
           {showResendSuccess && (
             <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-600 px-4 py-3 rounded-lg text-sm animate-fade-in">
               <div className="flex items-center">
                 <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
                 <span>New OTP sent to your email!</span>
-              </div>
-            </div>
-          )}
-
-          {/* Redirecting Message */}
-          {redirecting && (
-            <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-600 px-4 py-3 rounded-lg text-sm animate-fade-in">
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                <span>Redirecting to reset password page...</span>
               </div>
             </div>
           )}
@@ -383,7 +352,6 @@ const VerifyOTP = () => {
                   </span>
                 </div>
 
-                {/* Resend cooldown timer */}
                 {resendCooldown > 0 && (
                   <div className="text-sm text-gray-500">
                     Resend available in:{" "}

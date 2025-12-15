@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, ArrowLeft, CheckCircle, RefreshCw } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
@@ -13,10 +13,19 @@ const ForgotPassword = () => {
   const [canResend, setCanResend] = useState(false);
   const [resendTimer, setResendTimer] = useState(60); // 60 seconds cooldown
   const [redirecting, setRedirecting] = useState(false);
+  const [isFromVerifyOTP, setIsFromVerifyOTP] = useState(false);
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoading, error } = useAppSelector((state) => state.auth);
+
+  // Check if coming from VerifyOTP page
+  useEffect(() => {
+    if (location.state?.from === "verify-otp") {
+      setIsFromVerifyOTP(true);
+    }
+  }, [location]);
 
   // Resend timer effect
   useEffect(() => {
@@ -125,6 +134,11 @@ const ForgotPassword = () => {
       >
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900">Forgot Password</h2>
+          {isFromVerifyOTP && (
+            <p className="mt-2 text-sm text-blue-600">
+              Please enter a different email address to receive a new OTP
+            </p>
+          )}
           <p className="mt-2 text-gray-600">
             Enter your email to receive a reset OTP
           </p>

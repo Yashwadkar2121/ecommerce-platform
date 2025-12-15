@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Eye, EyeOff, CheckCircle, ArrowLeft } from "lucide-react";
+import {
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { resetPassword, clearError } from "../../store/slices/authSlice";
 
@@ -19,24 +26,33 @@ const ResetPassword = () => {
     confirmPassword: "",
   });
   const [passwordReset, setPasswordReset] = useState(false);
+  const [tokenError, setTokenError] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector((state) => state.auth);
 
+  // Get resetToken ONLY from navigation state, NOT from Redux
   const resetToken = location.state?.resetToken;
   const email = location.state?.email;
 
   useEffect(() => {
-    // console.log("Reset token in component:", resetToken); // Debug log
-    // console.log("Email in component:", email); // Debug log
-
+    // Check if resetToken exists in location state
     if (!resetToken) {
-      // console.log("No reset token found, redirecting to forgot-password");
-      navigate("/forgot-password");
+      setTokenError(true);
+
+      // Show error and redirect
+      setTimeout(() => {
+        navigate("/forgot-password", {
+          replace: true,
+          state: {
+            error: "Invalid or expired reset token. Please request a new OTP.",
+          },
+        });
+      }, 3000);
     }
-  }, [resetToken, navigate, email]);
+  }, [resetToken, navigate]);
 
   const validatePassword = (password) => {
     if (password.length < 6) {
@@ -59,7 +75,6 @@ const ResetPassword = () => {
       [name]: value,
     });
 
-    // Clear errors when user types
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -107,8 +122,6 @@ const ResetPassword = () => {
       return;
     }
 
-    // console.log("Submitting password reset with token:", resetToken); // Debug log
-
     try {
       await dispatch(
         resetPassword({
@@ -122,6 +135,7 @@ const ResetPassword = () => {
       // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate("/login", {
+          replace: true,
           state: {
             message:
               "Password reset successful! Please login with your new password.",
@@ -132,6 +146,39 @@ const ResetPassword = () => {
       console.error("Password reset error:", error);
     }
   };
+
+  if (tokenError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sm:mx-auto sm:w-full sm:max-w-md"
+        >
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              Invalid or Expired Token
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Your reset token is invalid or has expired.
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Redirecting to forgot password page...
+            </p>
+            <button
+              onClick={() => navigate("/forgot-password", { replace: true })}
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
+              Click here to go immediately
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (passwordReset) {
     return (
@@ -155,7 +202,7 @@ const ResetPassword = () => {
               Redirecting to login page in 3 seconds...
             </p>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/login", { replace: true })}
               className="text-primary-600 hover:text-primary-700 font-medium"
             >
               Click here to go to login immediately
@@ -318,11 +365,11 @@ const ResetPassword = () => {
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => navigate("/verify-otp", { state: { email } })}
+                onClick={() => navigate("/forgot-password", { replace: true })}
                 className="text-sm font-medium text-gray-600 hover:text-gray-500"
               >
                 <ArrowLeft className="inline mr-1 h-4 w-4" />
-                Back to OTP verification
+                Back to Forgot Password
               </button>
             </div>
           </form>
