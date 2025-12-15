@@ -948,7 +948,7 @@ const Register = () => {
               disabled={
                 isLoading || loading.phone || loading.email || isSubmitting
               }
-              className="w-full flex justify-center items-center py-3 px-4 bg-primary-600 hover:bg-primary-700 text-black font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
             >
               {isLoading || isSubmitting ? (
                 <>
