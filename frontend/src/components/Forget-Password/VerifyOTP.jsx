@@ -188,6 +188,7 @@ const VerifyOTP = () => {
     }
   };
 
+  // VerifyOTP.jsx - Fix the handleResendOTP function
   const handleResendOTP = async () => {
     if (!resendEnabled || resendCooldown > 0) {
       return;
@@ -198,7 +199,8 @@ const VerifyOTP = () => {
     dispatch(clearError());
 
     try {
-      await dispatch(resendOTP({ email })).unwrap();
+      // Pass email as string, not object
+      await dispatch(resendOTP(email)).unwrap();
 
       setTimer(INITIAL_TIMER);
       setOtp(Array(OTP_LENGTH).fill(""));
@@ -216,6 +218,7 @@ const VerifyOTP = () => {
         setShowResendSuccess(false);
       }, 3000);
     } catch (error) {
+      console.error("Resend OTP error:", error);
       setErrorMessage(
         error.message || "Failed to resend OTP. Please try again."
       );

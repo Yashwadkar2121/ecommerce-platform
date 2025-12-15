@@ -130,7 +130,7 @@ class AuthService {
       // If phone is being cleared (set to empty/null)
       if (!phone || phone === "") {
         // Allow clearing phone number
-        console.log(`Clearing phone number for user ${userId}`);
+        // console.log(`Clearing phone number for user ${userId}`);
       } else {
         // Check if new phone number already exists
         const existingUser = await User.findOne({
@@ -280,7 +280,7 @@ class AuthService {
   // Verify OTP - FIXED VERSION
   async verifyOTP(email, otp) {
     try {
-      console.log(`🔍 Verifying OTP for email: ${email}, OTP: ${otp}`);
+      // console.log(`🔍 Verifying OTP for email: ${email}, OTP: ${otp}`);
 
       // Validate inputs
       if (!email || !otp) {
@@ -295,11 +295,11 @@ class AuthService {
         },
       });
 
-      console.log(`📊 OTP Record found: ${!!tokenRecord}`);
+      // console.log(`📊 OTP Record found: ${!!tokenRecord}`);
       if (tokenRecord) {
-        console.log(`📅 OTP expires at: ${tokenRecord.expiresAt}`);
-        console.log(`⏰ Current time: ${new Date()}`);
-        console.log(`✅ OTP used status: ${tokenRecord.used}`);
+        // console.log(`📅 OTP expires at: ${tokenRecord.expiresAt}`);
+        // console.log(`⏰ Current time: ${new Date()}`);
+        // console.log(`✅ OTP used status: ${tokenRecord.used}`);
       }
 
       if (!tokenRecord) {
@@ -308,19 +308,17 @@ class AuthService {
           where: { email: email.trim().toLowerCase() },
         });
         if (anyToken) {
-          console.log(
-            `ℹ️ Found OTP for email but different code: ${anyToken.token}`
-          );
-          console.log(`ℹ️ That OTP expires at: ${anyToken.expiresAt}`);
+          // console.log( `ℹ️ Found OTP for email but different code: ${anyToken.token}`
+          // console.log(`ℹ️ That OTP expires at: ${anyToken.expiresAt}`);
         } else {
-          console.log(`❌ No OTP found for email: ${email}`);
+          // console.log(`❌ No OTP found for email: ${email}`);
         }
         throw new Error("Invalid OTP");
       }
 
       // Check if OTP is expired
       if (new Date() > tokenRecord.expiresAt) {
-        console.log(`⏰ OTP expired at: ${tokenRecord.expiresAt}`);
+        // console.log(`⏰ OTP expired at: ${tokenRecord.expiresAt}`);
         // Clean up expired OTP
         await PasswordResetToken.destroy({ where: { email, token: otp } });
         throw new Error("OTP has expired. Please request a new one.");
@@ -328,13 +326,13 @@ class AuthService {
 
       // Check if OTP has already been used
       if (tokenRecord.used) {
-        console.log(`⚠️ OTP already used`);
+        // console.log(`⚠️ OTP already used`);
         throw new Error("OTP has already been used. Please request a new one.");
       }
 
       // Mark OTP as used
       await tokenRecord.update({ used: true });
-      console.log(`✅ OTP marked as used`);
+      // console.log(`✅ OTP marked as used`);
 
       // Generate reset token
       const resetToken = jwt.sign(
@@ -347,7 +345,7 @@ class AuthService {
         { expiresIn: "15m" }
       );
 
-      console.log(`✅ Reset token generated for: ${email}`);
+      // console.log(`✅ Reset token generated for: ${email}`);
 
       return {
         resetToken,
@@ -362,18 +360,34 @@ class AuthService {
   // Resend OTP - FIXED VERSION
   async resendOTP(email) {
     try {
-      console.log(`🔄 Resending OTP for email: ${email}`);
+      // console.log(`🔄 Resending OTP for email:`, email);
+      // console.log(`📝 Email type:`, typeof email);
+      // console.log(`📝 Email value:`, email);
 
-      // Validate email
-      if (!email) {
+      // Handle if email is an object (from req.body)
+      let actualEmail;
+      if (typeof email === "object" && email !== null) {
+        // If email is an object with an email property
+        if (email.email) {
+          actualEmail = email.email;
+          // console.log(`🔍 Extracted email from object:`, actualEmail);
+        } else {
+          throw new Error("Email object must contain an 'email' property");
+        }
+      } else if (typeof email === "string") {
+        actualEmail = email;
+      } else {
+        throw new Error(
+          `Email must be a string or object, received: ${typeof email}`
+        );
+      }
+
+      // Now validate the actual email string
+      if (!actualEmail) {
         throw new Error("Email is required");
       }
 
-      if (typeof email !== "string") {
-        throw new Error(`Email must be a string, received: ${typeof email}`);
-      }
-
-      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail = actualEmail.trim().toLowerCase();
       if (!normalizedEmail) {
         throw new Error("Email cannot be empty");
       }
@@ -387,22 +401,28 @@ class AuthService {
       // Check if user exists
       const user = await User.findOne({ where: { email: normalizedEmail } });
       if (!user) {
-        throw new Error("User with this email does not exist");
+        // For security, don't reveal if user exists or not
+        // console.log(`⚠️ User not found for email: ${normalizedEmail}`);
+        return {
+          success: true,
+          message:
+            "If an account exists with this email, a new OTP has been sent",
+        };
       }
 
-      console.log(`✅ User found: ${user.email}`);
+      // console.log(`✅ User found: ${user.email}`);
 
       // Generate new OTP
       const otp = this.generateOTP();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      console.log(`🔑 Generated OTP: ${otp}, Expires: ${expiresAt}`);
+      // console.log(`🔑 Generated OTP: ${otp}, Expires: ${expiresAt}`);
 
       // Delete existing OTPs for this email
       const deletedCount = await PasswordResetToken.destroy({
         where: { email: normalizedEmail },
       });
-      console.log(`🗑️ Deleted ${deletedCount} old OTPs`);
+      // console.log(`🗑️ Deleted ${deletedCount} old OTPs`);
 
       // Create new OTP
       await PasswordResetToken.create({
@@ -412,7 +432,7 @@ class AuthService {
         used: false,
       });
 
-      console.log(`💾 New OTP saved to database`);
+      // console.log(`💾 New OTP saved to database`);
 
       // Send email with new OTP
       try {
@@ -420,26 +440,27 @@ class AuthService {
           to: normalizedEmail,
           subject: "New Password Reset OTP",
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #333;">New Password Reset OTP</h2>
-              <p>A new OTP has been generated for your password reset request:</p>
-              <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
-                <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
-              </div>
-              <p>This OTP is valid for 10 minutes.</p>
-              <p>If you didn't request this, please ignore this email.</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">New Password Reset OTP</h2>
+            <p>A new OTP has been generated for your password reset request:</p>
+            <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
+              <h1 style="color: #333; letter-spacing: 10px; font-size: 32px;">${otp}</h1>
             </div>
-          `,
+            <p>This OTP is valid for 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+          </div>
+        `,
         });
-        console.log(`📧 Email sent successfully to: ${normalizedEmail}`);
+        // console.log(`📧 Email sent successfully to: ${normalizedEmail}`);
       } catch (emailError) {
         console.error("Failed to send email:", emailError.message);
         // Don't throw error - OTP is saved, just email failed
       }
 
       return {
-        expiresAt,
+        success: true,
         message: "New OTP sent successfully",
+        expiresAt,
       };
     } catch (error) {
       console.error(`❌ Resend OTP Error: ${error.message}`);
@@ -450,31 +471,31 @@ class AuthService {
   // Forgot password - Send OTP (with improvements)
   async forgotPassword(email) {
     try {
-      console.log(`📧 Forgot password request for: ${email}`);
+      // console.log(`📧 Forgot password request for: ${email}`);
 
       const normalizedEmail = email.trim().toLowerCase();
 
       const user = await User.findOne({ where: { email: normalizedEmail } });
       if (!user) {
-        console.log(`❌ User not found: ${normalizedEmail}`);
+        // console.log(`❌ User not found: ${normalizedEmail}`);
         // Don't tell the user the email doesn't exist (security)
         return {
           message: "If an account exists with this email, an OTP will be sent",
         };
       }
 
-      console.log(`✅ User found: ${user.id} - ${user.email}`);
+      // console.log(`✅ User found: ${user.id} - ${user.email}`);
 
       const otp = this.generateOTP();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      console.log(`🔑 Generated OTP: ${otp}, Expires: ${expiresAt}`);
+      // console.log(`🔑 Generated OTP: ${otp}, Expires: ${expiresAt}`);
 
       // Delete existing OTPs for this email
       const deletedCount = await PasswordResetToken.destroy({
         where: { email: normalizedEmail },
       });
-      console.log(`🗑️ Deleted ${deletedCount} old OTPs`);
+      // console.log(`🗑️ Deleted ${deletedCount} old OTPs`);
 
       // Create new OTP
       await PasswordResetToken.create({
@@ -484,7 +505,7 @@ class AuthService {
         used: false,
       });
 
-      console.log(`💾 OTP saved to database`);
+      // console.log(`💾 OTP saved to database`);
 
       // Send email with OTP
       try {
@@ -503,7 +524,7 @@ class AuthService {
             </div>
           `,
         });
-        console.log(`📧 Email sent successfully to: ${normalizedEmail}`);
+        // console.log(`📧 Email sent successfully to: ${normalizedEmail}`);
       } catch (emailError) {
         console.error("Failed to send email:", emailError.message);
         // Continue even if email fails
@@ -522,12 +543,12 @@ class AuthService {
   // Reset password - FIXED VERSION
   async resetPassword(resetToken, newPassword) {
     try {
-      console.log(`🔑 Resetting password with token`);
+      // console.log(`🔑 Resetting password with token`);
 
       let decoded;
       try {
         decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
-        console.log(`✅ Token decoded successfully for: ${decoded.email}`);
+        // console.log(`✅ Token decoded successfully for: ${decoded.email}`);
       } catch (error) {
         console.error(`❌ Token verification failed: ${error.message}`);
         throw new Error("Invalid or expired reset token");
@@ -541,7 +562,7 @@ class AuthService {
       const { email } = decoded;
       const normalizedEmail = email.trim().toLowerCase();
 
-      console.log(`🔍 Looking for user: ${normalizedEmail}`);
+      // console.log(`🔍 Looking for user: ${normalizedEmail}`);
 
       const user = await User.findOne({ where: { email: normalizedEmail } });
       if (!user) {
@@ -549,7 +570,7 @@ class AuthService {
         throw new Error("User not found");
       }
 
-      console.log(`✅ User found: ${user.id}`);
+      // console.log(`✅ User found: ${user.id}`);
 
       // Validate new password
       if (newPassword.length < 6) {
@@ -559,11 +580,11 @@ class AuthService {
       // Update password
       user.password = newPassword;
       await user.save();
-      console.log(`✅ Password updated for user: ${user.id}`);
+      // console.log(`✅ Password updated for user: ${user.id}`);
 
       // Clean up all OTPs for this email
       await PasswordResetToken.destroy({ where: { email: normalizedEmail } });
-      console.log(`🗑️ Cleared OTPs for email: ${normalizedEmail}`);
+      // console.log(`🗑️ Cleared OTPs for email: ${normalizedEmail}`);
 
       // Send confirmation email
       try {
@@ -578,7 +599,7 @@ class AuthService {
             </div>
           `,
         });
-        console.log(`📧 Confirmation email sent to: ${normalizedEmail}`);
+        // console.log(`📧 Confirmation email sent to: ${normalizedEmail}`);
       } catch (emailError) {
         console.error("Failed to send confirmation email:", emailError.message);
         // Don't throw error - password was reset successfully

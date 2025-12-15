@@ -104,65 +104,117 @@ const logout = async (req, res, next) => {
   }
 };
 
-// Forgot password - Send OTP
-const forgotPassword = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    await AuthService.forgotPassword(email);
-
-    res.status(200).json({
-      success: true,
-      message: "OTP sent to your email",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Verify OTP
-const verifyOTP = async (req, res, next) => {
+const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        error: "Email and OTP are required",
+      });
+    }
+
     const result = await AuthService.verifyOTP(email, otp);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "OTP verified successfully",
-      ...result,
+      message: result.message,
+      resetToken: result.resetToken,
     });
   } catch (error) {
-    next(error);
+    console.error(`❌ OTP Verification Controller Error: ${error.message}`);
+
+    return res.status(400).json({
+      success: false,
+      error: error.message || "OTP verification failed",
+    });
   }
 };
 
-// Resend OTP
-const resendOTP = async (req, res, next) => {
+// Forgot Password controller
+const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const result = await AuthService.resendOTP(email);
 
-    res.status(200).json({
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    const result = await AuthService.forgotPassword(email);
+
+    return res.status(200).json({
       success: true,
-      message: "New OTP sent to your email",
-      expiresAt: result.expiresAt.toISOString(),
+      message: result.message,
     });
   } catch (error) {
-    next(error);
+    console.error(`❌ Forgot Password Controller Error: ${error.message}`);
+
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to process forgot password request",
+    });
   }
 };
 
-// Reset password
-const resetPassword = async (req, res, next) => {
+// Resend OTP controller
+const resendOTP = async (req, res) => {
   try {
-    const { resetToken, newPassword } = req.body;
-    await AuthService.resetPassword(resetToken, newPassword);
+    const { email } = req.body;
 
-    res.status(200).json({
-      success: true,
-      message: "Password reset successfully",
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    const result = await AuthService.resendOTP(email);
+
+    return res.status(200).json({
+      success: result.success !== false, // Default to true if not specified
+      message: result.message || "OTP resent successfully",
+      expiresAt: result.expiresAt,
     });
   } catch (error) {
-    next(error);
+    console.error(`❌ Resend OTP Controller Error: ${error.message}`);
+    console.error(`❌ Full error stack:`, error);
+
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to resend OTP",
+    });
+  }
+};
+
+// Reset Password controller
+const resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "Reset token and new password are required",
+      });
+    }
+
+    const result = await AuthService.resetPassword(resetToken, newPassword);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error(`❌ Reset Password Controller Error: ${error.message}`);
+
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to reset password",
+    });
   }
 };
 

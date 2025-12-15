@@ -65,7 +65,7 @@ export const authService = {
   },
 
   resendOTP: (email) => {
-    return api.post("/auth/resend-otp", { email: email });
+    return api.post("/auth/resend-otp", { email });
   },
 
   resetPassword: (resetToken, newPassword) => {
