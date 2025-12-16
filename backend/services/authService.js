@@ -277,7 +277,7 @@ class AuthService {
     return crypto.randomInt(100000, 999999).toString();
   }
 
-  // Verify OTP - FIXED VERSION
+  // Verify OTP
   async verifyOTP(email, otp) {
     try {
       // console.log(`🔍 Verifying OTP for email: ${email}, OTP: ${otp}`);
