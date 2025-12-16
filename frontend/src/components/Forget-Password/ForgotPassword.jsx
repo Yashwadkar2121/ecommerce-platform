@@ -1,26 +1,53 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, ArrowLeft, CheckCircle, RefreshCw } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { forgotPassword, clearError } from "../../store/slices/authSlice";
 
+// Constants
+const RESEND_COOLDOWN = 60; // 60 seconds
+const REDIRECT_DELAY = 2000;
+const SUCCESS_MESSAGE_DURATION = 2000;
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Utility functions
+const validateEmail = (email) => {
+  if (!email?.trim()) return "Email is required";
+  if (!EMAIL_REGEX.test(email)) return "Please enter a valid email address";
+  return "";
+};
+
 const ForgotPassword = () => {
+  // State
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
-  const [formErrors, setFormErrors] = useState("");
+  const [formError, setFormError] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [canResend, setCanResend] = useState(false);
-  const [resendTimer, setResendTimer] = useState(60); // 60 seconds cooldown
+  const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN);
   const [redirecting, setRedirecting] = useState(false);
   const [isFromVerifyOTP, setIsFromVerifyOTP] = useState(false);
 
+  // Hooks
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoading, error } = useAppSelector((state) => state.auth);
 
-  // Check if coming from VerifyOTP page
+  // Derived values
+  const isSubmitDisabled = useMemo(
+    () => isLoading || redirecting,
+    [isLoading, redirecting]
+  );
+  const isResendDisabled = useMemo(
+    () => !canResend || isLoading || redirecting,
+    [canResend, isLoading, redirecting]
+  );
+
+  // Effects
   useEffect(() => {
     if (location.state?.from === "verify-otp") {
       setIsFromVerifyOTP(true);
@@ -29,47 +56,52 @@ const ForgotPassword = () => {
 
   // Resend timer effect
   useEffect(() => {
-    let timer;
-    if (emailSent && resendTimer > 0) {
-      timer = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    } else if (resendTimer === 0) {
-      setCanResend(true);
+    if (!emailSent || resendTimer <= 0) {
+      setCanResend(resendTimer <= 0);
+      return;
     }
+
+    const timer = setInterval(() => {
+      setResendTimer((prev) => prev - 1);
+    }, 1000);
+
     return () => clearInterval(timer);
   }, [emailSent, resendTimer]);
 
-  // Auto-redirect to VerifyOTP page after OTP is sent
+  // Auto-redirect effect
   useEffect(() => {
-    if (emailSent && !redirecting) {
-      // Redirect after 2 seconds to show success message
-      const redirectTimer = setTimeout(() => {
-        setRedirecting(true);
-        navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
-      }, 2000);
+    if (!emailSent || redirecting) return;
 
-      return () => clearTimeout(redirectTimer);
-    }
+    const redirectTimer = setTimeout(() => {
+      setRedirecting(true);
+      navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+    }, REDIRECT_DELAY);
+
+    return () => clearTimeout(redirectTimer);
   }, [emailSent, email, navigate, redirecting]);
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) return "Email is required";
-    if (!emailRegex.test(email)) return "Please enter a valid email address";
-    return "";
-  };
+  // Event handlers
+  const handleEmailChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      setEmail(value);
+
+      if (formError) setFormError("");
+      dispatch(clearError());
+    },
+    [formError, dispatch]
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const emailError = validateEmail(email);
     if (emailError) {
-      setFormErrors(emailError);
+      setFormError(emailError);
       return;
     }
 
-    setFormErrors("");
+    setFormError("");
     setRedirecting(false);
 
     try {
@@ -77,68 +109,267 @@ const ForgotPassword = () => {
       setEmailSent(true);
       setShowSuccessMessage(true);
       setCanResend(false);
-      setResendTimer(60); // Reset timer
+      setResendTimer(RESEND_COOLDOWN);
+
+      // Hide success message after delay
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, SUCCESS_MESSAGE_DURATION);
     } catch (error) {
-      console.log(error);
+      console.error("Forgot password error:", error);
     }
   };
 
   const handleResendOTP = async () => {
     if (!canResend) return;
 
-    setFormErrors("");
+    setFormError("");
     dispatch(clearError());
     setRedirecting(false);
 
     try {
       await dispatch(forgotPassword(email)).unwrap();
       setCanResend(false);
-      setResendTimer(60); // Reset timer
+      setResendTimer(RESEND_COOLDOWN);
       setShowSuccessMessage(true);
 
-      // Auto-redirect after resend
       setTimeout(() => {
         navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
-      }, 2000);
+      }, REDIRECT_DELAY);
     } catch (error) {
-      console.log(error);
+      console.error("Resend OTP error:", error);
     }
   };
 
   const handleBackToLogin = () => {
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const handleUseDifferentEmail = () => {
     setEmailSent(false);
     setEmail("");
-    setFormErrors("");
+    setFormError("");
     dispatch(clearError());
-    setResendTimer(60);
+    setResendTimer(RESEND_COOLDOWN);
     setCanResend(false);
     setRedirecting(false);
   };
 
-  // Manual navigation if user wants to go immediately
   const navigateToVerifyOTP = () => {
     setRedirecting(true);
     navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
   };
 
+  // Memoized components
+  const renderSuccessState = useMemo(
+    () => (
+      <div className="text-center">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4"
+        >
+          <CheckCircle className="h-8 w-8 text-green-600" />
+        </motion.div>
+
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Check Your Email
+        </h3>
+
+        <p className="text-sm text-gray-600 mb-6">
+          We've sent a 6-digit OTP to{" "}
+          <span className="font-semibold text-gray-800">{email}</span>. The OTP
+          is valid for 10 minutes.
+        </p>
+
+        <div className="space-y-3">
+          <button
+            onClick={navigateToVerifyOTP}
+            disabled={redirecting}
+            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-70 transition-all duration-200 shadow-md hover:shadow-lg"
+          >
+            {redirecting ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2" />
+                Redirecting...
+              </>
+            ) : (
+              "Go to OTP Verification"
+            )}
+          </button>
+
+          <button
+            onClick={handleResendOTP}
+            disabled={isResendDisabled}
+            className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-700 border-t-transparent mr-2" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {canResend
+                  ? "Resend OTP"
+                  : `Resend available in ${resendTimer}s`}
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          <button
+            onClick={handleUseDifferentEmail}
+            disabled={redirecting}
+            className="text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50 transition-colors"
+          >
+            Use different email address
+          </button>
+
+          <div>
+            <button
+              onClick={handleBackToLogin}
+              disabled={redirecting}
+              className="text-sm font-medium text-gray-600 hover:text-gray-700 flex items-center justify-center disabled:opacity-50 transition-colors"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    ),
+    [email, redirecting, isLoading, canResend, resendTimer, isResendDisabled]
+  );
+
+  const renderFormState = useMemo(
+    () => (
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        {/* Error Messages */}
+        {(error || formError) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-xl text-sm"
+            role="alert"
+          >
+            <div className="flex items-center">
+              <div className="h-2 w-2 rounded-full bg-red-500 mr-2" />
+              <span>{error || formError}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Email Input */}
+        <div>
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Email address
+          </label>
+
+          <div className="relative">
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={handleEmailChange}
+              className="w-full px-4 py-3 pl-11 border border-gray-300 rounded-xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition-colors duration-200"
+              placeholder="Enter your registered email"
+              aria-describedby="email-description"
+              aria-invalid={!!formError}
+            />
+
+            <Mail
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+              size={18}
+              aria-hidden="true"
+            />
+          </div>
+
+          <p id="email-description" className="mt-2 text-xs text-gray-500">
+            Enter the email associated with your account
+          </p>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isSubmitDisabled}
+          className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+          aria-busy={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2" />
+              Sending OTP...
+            </>
+          ) : (
+            "Send OTP"
+          )}
+        </button>
+
+        {/* Navigation Links */}
+        <div className="text-center space-y-3 pt-4 border-t border-gray-100">
+          <p className="text-sm text-gray-600">
+            Remember your password?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-primary-600 hover:text-primary-700 focus:outline-none focus:underline transition-colors"
+            >
+              Back to Login
+            </Link>
+          </p>
+
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            className="text-sm font-medium text-gray-600 hover:text-gray-700 flex items-center justify-center focus:outline-none focus:underline transition-colors"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Login
+          </button>
+        </div>
+      </form>
+    ),
+    [email, formError, error, isLoading, isSubmitDisabled, handleEmailChange]
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
         className="sm:mx-auto sm:w-full sm:max-w-md"
       >
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Forgot Password</h2>
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-primary-100 rounded-full">
+              <Mail className="h-8 w-8 text-primary-600" />
+            </div>
+          </div>
+
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+            Forgot Password
+          </h1>
+
           {isFromVerifyOTP && (
-            <p className="mt-2 text-sm text-blue-600">
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-2 text-sm text-blue-600"
+            >
               Please enter a different email address to receive a new OTP
-            </p>
+            </motion.p>
           )}
+
           <p className="mt-2 text-gray-600">
             Enter your email to receive a reset OTP
           </p>
@@ -148,181 +379,39 @@ const ForgotPassword = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
       >
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-6 shadow-lg rounded-2xl sm:px-10 border border-gray-100">
+          {/* Success Message */}
           {showSuccessMessage && (
-            <div className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-xl text-sm"
+              role="alert"
+            >
               <div className="flex items-center">
-                <CheckCircle className="h-5 w-5 mr-2" />
+                <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
                 <span>
                   OTP sent successfully!{" "}
                   {redirecting
                     ? "Redirecting..."
-                    : "Redirecting in 2 seconds..."}
+                    : `Redirecting in ${REDIRECT_DELAY / 1000} seconds...`}
                 </span>
               </div>
-            </div>
+            </motion.div>
           )}
 
-          {emailSent ? (
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Check Your Email
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                We've sent a 6-digit OTP to <strong>{email}</strong>. The OTP is
-                valid for 10 minutes.
-              </p>
+          {emailSent ? renderSuccessState : renderFormState}
+        </div>
 
-              <div className="mb-6">
-                <button
-                  onClick={navigateToVerifyOTP}
-                  disabled={redirecting}
-                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors mb-3 disabled:opacity-70"
-                >
-                  {redirecting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Redirecting...
-                    </>
-                  ) : (
-                    "Go to OTP Verification"
-                  )}
-                </button>
-
-                <button
-                  onClick={handleResendOTP}
-                  disabled={!canResend || isLoading || redirecting}
-                  className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700 mr-2"></div>
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      {canResend
-                        ? "Resend OTP"
-                        : `Resend available in ${resendTimer}s`}
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  onClick={handleUseDifferentEmail}
-                  disabled={redirecting}
-                  className="text-sm font-medium text-primary-600 hover:text-primary-500 disabled:opacity-50"
-                >
-                  Use different email address
-                </button>
-                <div>
-                  <button
-                    onClick={handleBackToLogin}
-                    disabled={redirecting}
-                    className="text-sm font-medium text-gray-600 hover:text-gray-500 flex items-center justify-center disabled:opacity-50"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Login
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm animate-fade-in">
-                  {error}
-                </div>
-              )}
-
-              {formErrors && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm animate-fade-in">
-                  {formErrors}
-                </div>
-              )}
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Email address
-                </label>
-                <div className="mt-1 relative">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (formErrors) setFormErrors("");
-                      dispatch(clearError());
-                    }}
-                    className="w-full px-3 py-3 pl-11 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 focus:border-primary-500 text-sm transition-colors"
-                    placeholder="Enter your registered email"
-                  />
-                  <Mail
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                    size={18}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Enter the email associated with your account
-                </p>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-black bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Sending OTP...
-                    </>
-                  ) : (
-                    "Send OTP"
-                  )}
-                </button>
-              </div>
-
-              <div className="text-center space-y-2">
-                <p className="text-sm text-gray-600">
-                  Remember your password?{" "}
-                  <Link
-                    to="/login"
-                    className="font-medium text-primary-600 hover:text-primary-500"
-                  >
-                    Back to Login
-                  </Link>
-                </p>
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleBackToLogin}
-                    className="text-sm font-medium text-gray-600 hover:text-gray-500 flex items-center justify-center"
-                  >
-                    <ArrowLeft className="mr-1 h-4 w-4" />
-                    Back to Login
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
+        {/* Security Note */}
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500">
+            For security, OTP expires in 10 minutes. Check your spam folder if
+            you don't see it.
+          </p>
         </div>
       </motion.div>
     </div>
