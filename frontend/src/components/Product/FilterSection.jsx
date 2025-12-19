@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, ChevronDown } from "lucide-react";
+import { Filter, X, Check, ChevronDown } from "lucide-react";
 import { useAppDispatch } from "../../store/hooks";
-import { setFilters } from "../../store/slices/productSlice";
+import { setFilters, clearFilters } from "../../store/slices/productSlice";
 
-// Define FilterDropdown component inside the same file
+// FilterDropdown Component
 const FilterDropdown = ({
   isOpen,
   setIsOpen,
@@ -17,7 +17,6 @@ const FilterDropdown = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Filter options based on search term
   const filteredOptions = options.filter(
     (option) =>
       option && option.toLowerCase().includes(searchTerm.toLowerCase())
@@ -117,7 +116,7 @@ const FilterDropdown = ({
   );
 };
 
-// Define ActiveFilterBadge component
+// ActiveFilterBadge Component
 const ActiveFilterBadge = ({ label, onClear, value }) => (
   <div className="inline-flex items-center gap-1 bg-primary-100 text-primary-700 px-3 py-1.5 rounded-full text-sm font-medium">
     <span className="truncate max-w-[150px]">
@@ -132,14 +131,163 @@ const ActiveFilterBadge = ({ label, onClear, value }) => (
   </div>
 );
 
-// Main FilterSection component
-const FilterSection = ({
+// FilterContent Component
+const FilterContent = ({
   filters,
   categories,
-  products, // Get products from parent
-  onFilterChange,
-  localFilters,
+  brandsToShow,
+  priceRange,
+  setPriceRange,
+  isCategoryOpen,
+  setIsCategoryOpen,
+  isBrandOpen,
+  setIsBrandOpen,
+  handleCategoryChange,
+  handleBrandChange,
+  handlePriceApply,
+  handleClearFilter,
+  clearAllFilters,
 }) => {
+  return (
+    <div className="space-y-6">
+      {/* Active Filters */}
+      {(filters.category ||
+        filters.brand ||
+        filters.minPrice ||
+        filters.maxPrice) && (
+        <div>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">
+            Active Filters
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {filters.category && (
+              <ActiveFilterBadge
+                label="Category"
+                value={filters.category}
+                onClear={() => handleClearFilter("category")}
+              />
+            )}
+            {filters.brand && (
+              <ActiveFilterBadge
+                label="Brand"
+                value={filters.brand}
+                onClear={() => handleClearFilter("brand")}
+              />
+            )}
+            {(filters.minPrice || filters.maxPrice) && (
+              <ActiveFilterBadge
+                label="Price"
+                value={`$${filters.minPrice || "0"} - $${
+                  filters.maxPrice || "∞"
+                }`}
+                onClear={() => handleClearFilter("price")}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Category Filter */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Category</h3>
+        <FilterDropdown
+          isOpen={isCategoryOpen}
+          setIsOpen={setIsCategoryOpen}
+          label="Category"
+          options={categories}
+          selectedValue={filters.category}
+          onSelect={handleCategoryChange}
+          placeholder="All Categories"
+        />
+      </div>
+
+      {/* Brand Filter */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Brand</h3>
+        <FilterDropdown
+          isOpen={isBrandOpen}
+          setIsOpen={setIsBrandOpen}
+          label="Brand"
+          options={brandsToShow}
+          selectedValue={filters.brand}
+          onSelect={handleBrandChange}
+          placeholder="All Brands"
+        />
+        {filters.category && (
+          <p className="mt-1 text-xs text-gray-500">
+            Showing brands for {filters.category}
+          </p>
+        )}
+      </div>
+
+      {/* Price Range Filter */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Price Range</h3>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                $
+              </span>
+              <input
+                type="number"
+                placeholder="Min"
+                value={priceRange.min}
+                onChange={(e) =>
+                  setPriceRange({ ...priceRange, min: e.target.value })
+                }
+                onKeyDown={(e) => e.key === "Enter" && handlePriceApply()}
+                className="w-full pl-7 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <span className="text-gray-400">-</span>
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                $
+              </span>
+              <input
+                type="number"
+                placeholder="Max"
+                value={priceRange.max}
+                onChange={(e) =>
+                  setPriceRange({ ...priceRange, max: e.target.value })
+                }
+                onKeyDown={(e) => e.key === "Enter" && handlePriceApply()}
+                className="w-full pl-7 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                min="0"
+                step="0.01"
+              />
+            </div>
+          </div>
+          <button
+            onClick={handlePriceApply}
+            className="w-full bg-primary-600 hover:bg-primary-700 text-black py-2.5 rounded-lg transition-colors text-sm font-medium"
+          >
+            Apply Price Filter
+          </button>
+        </div>
+      </div>
+
+      {/* Clear All Button */}
+      {(filters.category ||
+        filters.brand ||
+        filters.minPrice ||
+        filters.maxPrice) && (
+        <button
+          onClick={clearAllFilters}
+          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2.5 rounded-lg transition-colors text-sm font-medium border border-gray-300"
+        >
+          Clear All Filters
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Main FilterSection Component
+const FilterSection = ({ filters, categories, products }) => {
   const dispatch = useAppDispatch();
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isBrandOpen, setIsBrandOpen] = useState(false);
@@ -147,13 +295,12 @@ const FilterSection = ({
     min: filters.minPrice || "",
     max: filters.maxPrice || "",
   });
+  const [isOpen, setIsOpen] = useState(false);
 
-  // Extract all unique brands from all products
   const allBrands = useMemo(() => {
     return [...new Set(products.map((p) => p.brand).filter(Boolean))].sort();
   }, [products]);
 
-  // Extract brands for current category
   const categoryBrands = useMemo(() => {
     if (!filters.category) return [];
     return [
@@ -166,34 +313,26 @@ const FilterSection = ({
     ].sort();
   }, [products, filters.category]);
 
-  // Brands to show in dropdown
   const brandsToShow = useMemo(() => {
     return filters.category && categoryBrands.length > 0
       ? categoryBrands
       : allBrands;
   }, [filters.category, categoryBrands, allBrands]);
 
-  // Handle category change
   const handleCategoryChange = (value) => {
-    onFilterChange("category", value);
-    // Reset brand when category changes
-    onFilterChange("brand", "");
     dispatch(
       setFilters({
         ...filters,
         category: value,
-        brand: "", // Clear brand filter
+        brand: "", // Clear brand when category changes
       })
     );
   };
 
-  // Handle brand change
   const handleBrandChange = (value) => {
-    onFilterChange("brand", value);
     dispatch(setFilters({ ...filters, brand: value }));
   };
 
-  // Price range handling
   useEffect(() => {
     setPriceRange({
       min: filters.minPrice || "",
@@ -225,140 +364,110 @@ const FilterSection = ({
         setPriceRange({ min: "", max: "" });
         dispatch(setFilters({ ...filters, minPrice: "", maxPrice: "" }));
         break;
-      case "search":
-        onFilterChange("search", "");
-        dispatch(setFilters({ ...filters, search: "" }));
-        break;
     }
   };
 
+  const clearAllFilters = () => {
+    dispatch(clearFilters());
+    setPriceRange({ min: "", max: "" });
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Active Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="text-gray-700 font-medium text-sm">Active filters:</div>
-        {filters.search && (
-          <ActiveFilterBadge
-            label="Search"
-            value={filters.search}
-            onClear={() => handleClearFilter("search")}
-          />
-        )}
-        {filters.category && (
-          <ActiveFilterBadge
-            label="Category"
-            value={filters.category}
-            onClear={() => handleClearFilter("category")}
-          />
-        )}
-        {filters.brand && (
-          <ActiveFilterBadge
-            label="Brand"
-            value={filters.brand}
-            onClear={() => handleClearFilter("brand")}
-          />
-        )}
-        {(filters.minPrice || filters.maxPrice) && (
-          <ActiveFilterBadge
-            label="Price"
-            value={`$${filters.minPrice || "0"} - $${filters.maxPrice || "∞"}`}
-            onClear={() => handleClearFilter("price")}
-          />
-        )}
-      </div>
+    <>
+      {/* Mobile Filter Toggle */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-40 bg-primary-600 text-black p-3 rounded-full shadow-lg hover:bg-primary-700 transition-colors"
+      >
+        <Filter size={24} />
+      </button>
 
-      {/* Filter Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Category
-          </label>
-          <FilterDropdown
-            isOpen={isCategoryOpen}
-            setIsOpen={setIsCategoryOpen}
-            label="Category"
-            options={categories}
-            selectedValue={localFilters.category}
-            onSelect={handleCategoryChange}
-            placeholder="Select Category"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Brand
-          </label>
-          <FilterDropdown
-            isOpen={isBrandOpen}
-            setIsOpen={setIsBrandOpen}
-            label="Brand"
-            options={brandsToShow}
-            selectedValue={localFilters.brand}
-            onSelect={handleBrandChange}
-            placeholder="Select Brand"
-          />
-          {filters.category && (
-            <p className="mt-1 text-xs text-gray-500">
-              Showing brands for {filters.category}
-            </p>
-          )}
-          {!filters.category && (
-            <p className="mt-1 text-xs text-gray-500">Showing all brands</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Price Range
-          </label>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                  $
-                </span>
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={priceRange.min}
-                  onChange={(e) =>
-                    setPriceRange({ ...priceRange, min: e.target.value })
-                  }
-                  onKeyDown={(e) => e.key === "Enter" && handlePriceApply()}
-                  className="w-full pl-7 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <span className="text-gray-400">-</span>
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                  $
-                </span>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={priceRange.max}
-                  onChange={(e) =>
-                    setPriceRange({ ...priceRange, max: e.target.value })
-                  }
-                  onKeyDown={(e) => e.key === "Enter" && handlePriceApply()}
-                  className="w-full pl-7 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handlePriceApply}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-black py-2 rounded-lg transition-colors text-sm font-medium"
+      {/* Mobile Filter Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              onClick={() => setIsOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "tween", duration: 0.3 }}
+              className="fixed left-0 top-0 h-full w-80 bg-white z-50 lg:hidden overflow-y-auto"
             >
-              Apply Price
-            </button>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Filters</h2>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <FilterContent
+                  filters={filters}
+                  categories={categories}
+                  brandsToShow={brandsToShow}
+                  priceRange={priceRange}
+                  setPriceRange={setPriceRange}
+                  isCategoryOpen={isCategoryOpen}
+                  setIsCategoryOpen={setIsCategoryOpen}
+                  isBrandOpen={isBrandOpen}
+                  setIsBrandOpen={setIsBrandOpen}
+                  handleCategoryChange={handleCategoryChange}
+                  handleBrandChange={handleBrandChange}
+                  handlePriceApply={handlePriceApply}
+                  handleClearFilter={handleClearFilter}
+                  clearAllFilters={clearAllFilters}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block w-64 flex-shrink-0">
+        <div className="sticky top-24 bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-gray-900">Filters</h2>
+            {(filters.category ||
+              filters.brand ||
+              filters.minPrice ||
+              filters.maxPrice) && (
+              <button
+                onClick={clearAllFilters}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Clear All
+              </button>
+            )}
           </div>
+          <FilterContent
+            filters={filters}
+            categories={categories}
+            brandsToShow={brandsToShow}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            isCategoryOpen={isCategoryOpen}
+            setIsCategoryOpen={setIsCategoryOpen}
+            isBrandOpen={isBrandOpen}
+            setIsBrandOpen={setIsBrandOpen}
+            handleCategoryChange={handleCategoryChange}
+            handleBrandChange={handleBrandChange}
+            handlePriceApply={handlePriceApply}
+            handleClearFilter={handleClearFilter}
+            clearAllFilters={clearAllFilters}
+          />
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
