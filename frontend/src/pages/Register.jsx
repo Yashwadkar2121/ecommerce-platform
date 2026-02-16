@@ -133,6 +133,7 @@ const Register = () => {
   // Refs for frequently changing data
   const formDataRef = useRef(formData);
   const touchedRef = useRef(touched);
+  const abortControllerRef = useRef(null);
 
   // Update refs when state changes
   useEffect(() => {
@@ -227,23 +228,15 @@ const Register = () => {
     setEmailSuggestions(Array.from(suggestions).slice(0, 3));
   }, []);
 
-  // Check availability (generic for both email and phone) - KEEP for UX
+  // Check availability - ONLY FOR UNIQUENESS (called from useEffect)
   const checkAvailability = useCallback(async (type, value) => {
     const isEmail = type === "email";
-    const pattern = isEmail
-      ? CONFIG.VALIDATION.PATTERNS.EMAIL
-      : CONFIG.VALIDATION.PATTERNS.PHONE;
-
-    // Don't check availability if phone is empty (optional)
-    if (!value || !pattern.test(value)) {
-      setStatusMessage((prev) => ({
-        ...prev,
-        [type]: isEmail
-          ? "Enter a valid email"
-          : "Optional - 10 digits if provided",
-      }));
-      return;
+    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
+    abortControllerRef.current = new AbortController();
 
     setLoading((prev) => ({ ...prev, [type]: true }));
     setStatusMessage((prev) => ({ ...prev, [type]: "Checking..." }));
@@ -252,7 +245,7 @@ const Register = () => {
       const service = isEmail
         ? authService.checkEmailAvailability
         : authService.checkPhoneAvailability;
-      const response = await service(value);
+      const response = await service(value, { signal: abortControllerRef.current.signal });
       const { available, error: apiError } = response.data;
       const defaultMsg = isEmail
         ? "Email already registered"
@@ -263,22 +256,24 @@ const Register = () => {
         [type]: available ? "Available" : apiError || defaultMsg,
       }));
 
-      // Only set error if not available
+      // Update form errors based on availability
       if (!available) {
         setFormErrors((prev) => ({ ...prev, [type]: apiError || defaultMsg }));
-      } else {
-        // Clear error if available
+      } else if (touchedRef.current[type]) {
+        // Clear error if available and field was touched
         setFormErrors((prev) => ({ ...prev, [type]: "" }));
       }
-    } catch {
-      setStatusMessage((prev) => ({ ...prev, [type]: "Check failed" }));
+    } catch (err) {
+      if (err.name !== 'CanceledError') {
+        setStatusMessage((prev) => ({ ...prev, [type]: "Check failed" }));
+      }
     } finally {
       setLoading((prev) => ({ ...prev, [type]: false }));
     }
   }, []);
 
-  // Field validation - WITH password complexity
-  const validateField = useCallback(
+  // Field validation - FORMAT ONLY (no availability checks)
+  const validateFieldFormat = useCallback(
     (name, value) => {
       const field = name.toLowerCase();
 
@@ -299,9 +294,8 @@ const Register = () => {
           return "";
 
         case "confirmpassword":
-          return value !== formDataRef.current.password
-            ? "Passwords do not match"
-            : "";
+          // Password match check removed from here - handled in validateForm
+          return "";
 
         case "phone":
           // Phone is optional, but if provided, must be exactly 10 digits
@@ -320,12 +314,13 @@ const Register = () => {
           return "";
       }
     },
-    [validateEmail], // Only stable dependencies
+    [validateEmail],
   );
 
-  // Debounced availability checks
+  // Debounced availability checks - SINGLE SOURCE OF TRUTH for availability
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Only check email if format is valid
       if (CONFIG.VALIDATION.PATTERNS.EMAIL.test(formData.email)) {
         generateSuggestions(formData.email);
         checkAvailability("email", formData.email);
@@ -335,16 +330,20 @@ const Register = () => {
           ...prev,
           email: formData.email ? "Enter a valid email" : "",
         }));
+        // Clear any previous availability errors if format is invalid
+        if (formErrors.email && !formErrors.email.includes('already')) {
+          setFormErrors((prev) => ({ ...prev, email: "" }));
+        }
       }
     }, CONFIG.DEBOUNCE.EMAIL);
 
     return () => clearTimeout(timer);
-  }, [formData.email, generateSuggestions, checkAvailability]);
+  }, [formData.email, generateSuggestions, checkAvailability, formErrors.email]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (formData.phone) {
-        // Only check if phone has value (optional field)
+        // Only check phone if format is valid
         if (CONFIG.VALIDATION.PATTERNS.PHONE.test(formData.phone)) {
           checkAvailability("phone", formData.phone);
         } else {
@@ -352,6 +351,10 @@ const Register = () => {
             ...prev,
             phone: "Must be exactly 10 digits if provided",
           }));
+          // Clear any previous availability errors if format is invalid
+          if (formErrors.phone && !formErrors.phone.includes('already')) {
+            setFormErrors((prev) => ({ ...prev, phone: "" }));
+          }
         }
       } else {
         // Phone is empty - show optional message
@@ -359,13 +362,15 @@ const Register = () => {
           ...prev,
           phone: "Optional - 10 digits if provided",
         }));
+        // Clear any phone errors when empty
+        setFormErrors((prev) => ({ ...prev, phone: "" }));
       }
     }, CONFIG.DEBOUNCE.PHONE);
 
     return () => clearTimeout(timer);
-  }, [formData.phone, checkAvailability]);
+  }, [formData.phone, checkAvailability, formErrors.phone]);
 
-  // Field handlers with batched updates
+  // SIMPLIFIED handleChange - ONLY updates form data
   const handleChange = useCallback(
     (e) => {
       const { name, value } = e.target;
@@ -380,44 +385,27 @@ const Register = () => {
       if (error) dispatch(clearError());
 
       // Update form data
-      setFormData((prev) => {
-        const newFormData = { ...prev, [name]: formattedValue };
+      setFormData((prev) => ({ ...prev, [name]: formattedValue }));
 
-        // Calculate errors if field is touched
-        if (touchedRef.current[name]) {
-          const newErrors = { ...formErrors };
-          newErrors[name] = validateField(name, formattedValue);
-
-          // Update confirm password error if password changes
-          if (name === "password") {
-            newErrors.confirmPassword = validateField(
-              "confirmPassword",
-              newFormData.confirmPassword,
-            );
-          } else if (name === "confirmPassword") {
-            newErrors.confirmPassword = validateField(
-              "confirmPassword",
-              formattedValue,
-            );
-          }
-
-          setFormErrors(newErrors);
-        }
-
-        return newFormData;
-      });
+      // Validate format immediately if field is touched
+      if (touchedRef.current[name]) {
+        const formatError = validateFieldFormat(name, formattedValue);
+        setFormErrors((prev) => ({ ...prev, [name]: formatError }));
+      }
     },
-    [error, dispatch, formatPhone, validateField, formErrors],
+    [error, dispatch, formatPhone, validateFieldFormat, formData.email],
   );
 
   const handleBlur = useCallback(
     (e) => {
       const { name } = e.target;
       setTouched((prev) => ({ ...prev, [name]: true }));
-      const errorMsg = validateField(name, formData[name]);
-      setFormErrors((prev) => ({ ...prev, [name]: errorMsg }));
+      
+      // Validate format on blur
+      const formatError = validateFieldFormat(name, formData[name]);
+      setFormErrors((prev) => ({ ...prev, [name]: formatError }));
     },
-    [formData, validateField],
+    [formData, validateFieldFormat],
   );
 
   const handleSuggestionClick = useCallback(
@@ -427,11 +415,14 @@ const Register = () => {
       setFormData((prev) => ({ ...prev, email: sanitized }));
       setTouched((prev) => ({ ...prev, email: true }));
       setEmailSuggestions([]);
-      const error = validateField("email", sanitized);
-      setFormErrors((prev) => ({ ...prev, email: error }));
-      if (!error) checkAvailability("email", sanitized);
+      
+      // Validate format
+      const formatError = validateFieldFormat("email", sanitized);
+      setFormErrors((prev) => ({ ...prev, email: formatError }));
+      
+      // Availability will be checked by useEffect
     },
-    [validateField, checkAvailability],
+    [validateFieldFormat],
   );
 
   const handleTermsChange = useCallback((e) => {
@@ -444,16 +435,27 @@ const Register = () => {
     }));
   }, []);
 
-  // SINGLE validation function - removed duplication
+  // Form validation for submission
   const validateForm = useCallback(() => {
     const errors = {};
     let isValid = true;
 
-    // Validate all fields
+    // Validate all fields format
     Object.keys(formData).forEach((field) => {
-      errors[field] = validateField(field, formData[field]);
+      errors[field] = validateFieldFormat(field, formData[field]);
       if (errors[field]) isValid = false;
     });
+
+    // Check passwords match (ONLY HERE - removed from validateFieldFormat)
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+      isValid = false;
+    }
+
+    // Check for availability errors (these come from checkAvailability)
+    if (formErrors.email?.includes('already') || formErrors.phone?.includes('already')) {
+      isValid = false;
+    }
 
     // Validate terms
     if (!termsAccepted) {
@@ -461,14 +463,8 @@ const Register = () => {
       isValid = false;
     }
 
-    // Check passwords match (client-side only)
-    if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = "Passwords do not match";
-      isValid = false;
-    }
-
     return { isValid, errors };
-  }, [formData, termsAccepted, validateField]);
+  }, [formData, formErrors, termsAccepted, validateFieldFormat]);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -484,9 +480,11 @@ const Register = () => {
       );
       setTouched(allTouched);
 
-      // SINGLE validation call
+      // Validate form
       const { isValid, errors } = validateForm();
-      setFormErrors(errors);
+      
+      // Update all format errors
+      setFormErrors((prev) => ({ ...prev, ...errors }));
 
       if (!isValid) {
         // Find and focus first error
@@ -501,17 +499,16 @@ const Register = () => {
       }
 
       try {
-        // Prepare registration data - send phone only if provided
+        // Prepare registration data
         const registrationData = {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
           email: formData.email.trim().toLowerCase(),
-          phone: formData.phone || null, // Send null if empty
+          phone: formData.phone || null,
           password: formData.password,
         };
 
         await dispatch(registerUser(registrationData)).unwrap();
-        // Success - redirect happens via useEffect
       } catch (error) {
         console.error("Registration failed:", error);
       } finally {
@@ -541,16 +538,14 @@ const Register = () => {
     [hasError, touched, formErrors],
   );
 
-  // Password validation status - WITH complexity checks
+  // Password validation status - USING THE SAME REGEX PATTERN
   const passwordValidation = useMemo(() => {
     const password = formData.password;
     const confirm = formData.confirmPassword;
 
-    // Use the regex pattern from CONFIG
-    const isValidFormat = CONFIG.VALIDATION.PATTERNS.PASSWORD.test(password);
-
     return {
-      isValidFormat,
+      // Using the same regex pattern from CONFIG
+      isValidFormat: CONFIG.VALIDATION.PATTERNS.PASSWORD.test(password),
       minLength: password.length >= 6,
       hasLowercase: /[a-z]/.test(password),
       hasUppercase: /[A-Z]/.test(password),
@@ -560,7 +555,7 @@ const Register = () => {
     };
   }, [formData.password, formData.confirmPassword]);
 
-  // Form fields configuration - Updated phone to show optional
+  // Form fields configuration
   const formFields = useMemo(
     () => [
       {
@@ -594,7 +589,7 @@ const Register = () => {
         placeholder: "1234567890 (optional)",
         icon: Phone,
         gridCols: "col-span-2",
-        optional: true, // Added flag for optional field
+        optional: true,
       },
       {
         id: "password",
@@ -616,7 +611,7 @@ const Register = () => {
     [showPassword],
   );
 
-  // Status icons
+  // Status icons component
   const StatusIcon = ({ type }) => {
     const isChecking = loading[type];
 
@@ -725,7 +720,7 @@ const Register = () => {
                         size={18}
                       />
 
-                      {/* Status indicators - only for email and phone */}
+                      {/* Status indicators - using StatusIcon component */}
                       {(id === "email" || id === "phone") && (
                         <StatusIcon type={id} />
                       )}
@@ -807,7 +802,7 @@ const Register = () => {
               )}
             </div>
 
-            {/* Password validation - WITH complexity checks */}
+            {/* Password validation - using passwordValidation object */}
             {(touched.password || formData.password) && (
               <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-xs">
                 <p className="font-medium text-gray-700 mb-1">
@@ -816,7 +811,7 @@ const Register = () => {
                 <div className="grid grid-cols-2 gap-1">
                   {Object.entries(passwordValidation)
                     .filter(
-                      ([key]) => !["minLength", "passwordsMatch"].includes(key),
+                      ([key]) => !["isValidFormat", "minLength", "passwordsMatch"].includes(key),
                     )
                     .map(([key, isValid]) => (
                       <p

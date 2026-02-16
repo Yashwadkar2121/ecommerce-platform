@@ -191,40 +191,45 @@ class AuthService {
 
   // ========== AUTH METHODS ==========
 
- async registerUser(userData, userAgent = "", ipAddress = "") {
-  const { email, password, firstName, lastName, phone } = userData;
-  
-  // Email availability check
-  const emailCheck = await this.checkEmailAvailability(email);
-  if (!emailCheck.available) {
-    throw new Error(emailCheck.error); // "Email already registered"
-  }
+  async registerUser(userData, userAgent = "", ipAddress = "") {
+    const { email, password, firstName, lastName, phone } = userData;
 
-  // Phone availability check (if provided)
-  if (phone) {
-    const phoneCheck = await this.checkPhoneAvailability(phone);
-    if (!phoneCheck.available) {
-      throw new Error(phoneCheck.error); // "Phone number already in use" or invalid format
+    // Email availability check
+    const emailCheck = await this.checkEmailAvailability(email);
+    if (!emailCheck.available) {
+      throw new Error(emailCheck.error); // "Email already registered"
     }
+
+    // Phone availability check (if provided)
+    if (phone) {
+      const phoneCheck = await this.checkPhoneAvailability(phone);
+      if (!phoneCheck.available) {
+        throw new Error(phoneCheck.error); // "Phone number already in use" or invalid format
+      }
+    }
+
+    // create user
+    const user = await User.create({
+      email: this.normalizeEmail(email),
+      password,
+      firstName,
+      lastName,
+      phone: phone ? this.normalizePhone(phone) : null,
+    });
+
+    const tokens = generateTokens(user.id, user.role);
+    await this.createSession(
+      user.id,
+      tokens.refreshToken,
+      userAgent,
+      ipAddress,
+    );
+
+    return {
+      user: this.formatUserResponse(user),
+      tokens,
+    };
   }
-
-  // create user
-  const user = await User.create({
-    email: this.normalizeEmail(email),
-    password,
-    firstName,
-    lastName,
-    phone: phone ? this.normalizePhone(phone) : null,
-  });
-
-  const tokens = generateTokens(user.id, user.role);
-  await this.createSession(user.id, tokens.refreshToken, userAgent, ipAddress);
-
-  return {
-    user: this.formatUserResponse(user),
-    tokens,
-  };
-}
 
   async loginUser(email, password, userAgent = "", ipAddress = "") {
     const normalizedEmail = this.normalizeEmail(email);
@@ -525,13 +530,6 @@ class AuthService {
   async checkPhoneAvailability(phone) {
     const normalizedPhone = this.normalizePhone(phone);
 
-    if (!normalizedPhone || !/^[0-9]{10}$/.test(normalizedPhone)) {
-      return {
-        available: false,
-        error: "Invalid phone format. Must be exactly 10 digits.",
-      };
-    }
-
     const existingUser = await User.findOne({
       where: { phone: normalizedPhone },
       attributes: ["id", "email"],
@@ -553,13 +551,6 @@ class AuthService {
 
   async checkEmailAvailability(email) {
     const normalizedEmail = this.normalizeEmail(email);
-
-    if (!normalizedEmail) {
-      return {
-        available: false,
-        error: "Email is required",
-      };
-    }
 
     const existingUser = await User.findOne({
       where: { email: normalizedEmail },

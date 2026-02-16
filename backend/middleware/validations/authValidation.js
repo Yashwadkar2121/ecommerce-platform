@@ -58,9 +58,9 @@ const validatePasswordChange = [
   body("newPassword")
     .isLength({ min: 6 })
     .withMessage("New password must be at least 6 characters")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
     .withMessage(
-      "New password must contain at least one uppercase letter, one lowercase letter, and one number",
+      "New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
     ),
   handleValidationErrors,
 ];
