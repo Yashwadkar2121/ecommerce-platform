@@ -1,0 +1,1266 @@
+[
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b301" },
+    "name": "iPhone 15 Pro",
+    "description": "Latest Apple iPhone with A17 Pro chip and titanium design.",
+    "price": 129999,
+    "category": "Electronics",
+    "subcategory": "Smartphones",
+    "brand": "Apple",
+    "images": [
+      "https://images.unsplash.com/photo-1695048133142-1a20484d2569",
+      "https://images.unsplash.com/photo-1695048133025-c6c45ea7ac73"
+    ],
+    "inventory": 45,
+    "attributes": {
+      "color": "Natural Titanium",
+      "storage": "256GB",
+      "display": "6.1 inch OLED",
+      "battery": "3650mAh"
+    },
+    "tags": ["apple", "iphone", "premium"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 156 },
+    "createdAt": { "$date": "2024-01-15T10:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b302" },
+    "name": "Samsung Galaxy S24 Ultra",
+    "description": "AI-powered smartphone with S Pen and enhanced camera system.",
+    "price": 134999,
+    "category": "Electronics",
+    "subcategory": "Smartphones",
+    "brand": "Samsung",
+    "images": [
+      "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf",
+      "https://images.unsplash.com/photo-1610945264803-c22b62d2a7b3"
+    ],
+    "inventory": 38,
+    "attributes": {
+      "color": "Titanium Gray",
+      "storage": "512GB",
+      "display": "6.8 inch Dynamic AMOLED",
+      "battery": "5000mAh"
+    },
+    "tags": ["samsung", "android", "flagship"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 89 },
+    "createdAt": { "$date": "2024-01-20T11:15:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b303" },
+    "name": "Sony WH-1000XM5",
+    "description": "Premium noise cancelling headphones with 30-hour battery.",
+    "price": 34999,
+    "category": "Electronics",
+    "subcategory": "Headphones",
+    "brand": "Sony",
+    "images": [
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e",
+      "https://images.unsplash.com/photo-1484704849700-f032a568e944"
+    ],
+    "inventory": 72,
+    "attributes": {
+      "color": "Black",
+      "connectivity": "Bluetooth 5.2",
+      "battery": "30 hours",
+      "noiseCancelling": "Yes"
+    },
+    "tags": ["sony", "headphones", "wireless"],
+    "isActive": true,
+    "ratings": { "average": 4.9, "count": 234 },
+    "createdAt": { "$date": "2024-02-10T09:45:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b304" },
+    "name": "iPad Air M2",
+    "description": "Powerful tablet with M2 chip and Liquid Retina display.",
+    "price": 79999,
+    "category": "Electronics",
+    "subcategory": "Tablets",
+    "brand": "Apple",
+    "images": [
+      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0",
+      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0"
+    ],
+    "inventory": 55,
+    "attributes": {
+      "color": "Space Gray",
+      "storage": "256GB",
+      "display": "10.9 inch",
+      "chip": "M2"
+    },
+    "tags": ["apple", "ipad", "tablet"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 112 },
+    "createdAt": { "$date": "2024-03-05T14:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b305" },
+    "name": "MacBook Air 15-inch",
+    "description": "Slim and powerful laptop with M3 chip and all-day battery.",
+    "price": 134999,
+    "category": "Electronics",
+    "subcategory": "Laptops",
+    "brand": "Apple",
+    "images": [
+      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853",
+      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8"
+    ],
+    "inventory": 42,
+    "attributes": {
+      "color": "Midnight",
+      "storage": "512GB",
+      "ram": "16GB",
+      "display": "15.3 inch"
+    },
+    "tags": ["apple", "macbook", "laptop"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 178 },
+    "createdAt": { "$date": "2024-04-12T16:10:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b306" },
+    "name": "Men's Casual Shirt",
+    "description": "Premium cotton casual shirt for everyday wear.",
+    "price": 2499,
+    "category": "Fashion",
+    "subcategory": "Men's Clothing",
+    "brand": "H&M",
+    "images": [
+      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c",
+      "https://images.unsplash.com/photo-1593032464235-6d1e5d511b3c"
+    ],
+    "inventory": 120,
+    "attributes": {
+      "color": "Navy Blue",
+      "size": "M",
+      "material": "100% Cotton",
+      "fit": "Regular"
+    },
+    "tags": ["shirt", "casual", "men"],
+    "isActive": true,
+    "ratings": { "average": 4.3, "count": 67 },
+    "createdAt": { "$date": "2024-05-18T11:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b307" },
+    "name": "Women's Summer Dress",
+    "description": "Floral print summer dress with comfortable fit.",
+    "price": 3499,
+    "category": "Fashion",
+    "subcategory": "Women's Clothing",
+    "brand": "Zara",
+    "images": [
+      "https://images.unsplash.com/photo-1566174053879-31528523f8ae",
+      "https://images.unsplash.com/photo-1566174053879-31528523f8ae"
+    ],
+    "inventory": 85,
+    "attributes": {
+      "color": "Floral Print",
+      "size": "S",
+      "material": "Polyester",
+      "length": "Midi"
+    },
+    "tags": ["dress", "summer", "women"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 92 },
+    "createdAt": { "$date": "2024-06-22T13:45:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b308" },
+    "name": "Leather Jacket",
+    "description": "Genuine leather jacket with modern design.",
+    "price": 8999,
+    "category": "Fashion",
+    "subcategory": "Outerwear",
+    "brand": "Levi's",
+    "images": [
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5",
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5"
+    ],
+    "inventory": 48,
+    "attributes": {
+      "color": "Black",
+      "size": "L",
+      "material": "Genuine Leather",
+      "style": "Biker"
+    },
+    "tags": ["jacket", "leather", "premium"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 45 },
+    "createdAt": { "$date": "2024-07-10T15:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b309" },
+    "name": "Running Shoes",
+    "description": "Lightweight running shoes with cushion technology.",
+    "price": 5999,
+    "category": "Fashion",
+    "subcategory": "Footwear",
+    "brand": "Nike",
+    "images": [
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff",
+      "https://images.unsplash.com/photo-1549298916-b41d501d3772"
+    ],
+    "inventory": 95,
+    "attributes": {
+      "color": "White/Red",
+      "size": "10",
+      "material": "Mesh",
+      "type": "Running"
+    },
+    "tags": ["shoes", "sports", "nike"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 134 },
+    "createdAt": { "$date": "2024-08-05T10:10:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b310" },
+    "name": "Designer Handbag",
+    "description": "Luxury handbag with premium finish.",
+    "price": 24999,
+    "category": "Fashion",
+    "subcategory": "Accessories",
+    "brand": "Gucci",
+    "images": [
+      "https://images.unsplash.com/photo-1584917865442-de89df76afd3",
+      "https://images.unsplash.com/photo-1584917865442-de89df76afd3"
+    ],
+    "inventory": 25,
+    "attributes": {
+      "color": "Brown",
+      "material": "Leather",
+      "size": "Medium",
+      "closure": "Zipper"
+    },
+    "tags": ["handbag", "luxury", "designer"],
+    "isActive": true,
+    "ratings": { "average": 4.9, "count": 28 },
+    "createdAt": { "$date": "2024-09-14T16:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b311" },
+    "name": "Smart LED TV 55-inch",
+    "description": "4K UHD Smart TV with HDR and built-in streaming.",
+    "price": 54999,
+    "category": "Home",
+    "subcategory": "Electronics",
+    "brand": "Samsung",
+    "images": [
+      "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1",
+      "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1"
+    ],
+    "inventory": 32,
+    "attributes": {
+      "screenSize": "55 inch",
+      "resolution": "4K UHD",
+      "smartFeatures": "Yes",
+      "refreshRate": "120Hz"
+    },
+    "tags": ["tv", "smart", "4k"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 89 },
+    "createdAt": { "$date": "2024-10-08T12:25:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b312" },
+    "name": "Smart Refrigerator",
+    "description": "Double door refrigerator with smart features.",
+    "price": 89999,
+    "category": "Home",
+    "subcategory": "Appliances",
+    "brand": "LG",
+    "images": [
+      "https://images.unsplash.com/photo-1591798454113-023d737c15b9",
+      "https://images.unsplash.com/photo-1584568694244-6b1d6c1537d5"
+    ],
+    "inventory": 18,
+    "attributes": {
+      "capacity": "550L",
+      "type": "Double Door",
+      "smartFeatures": "WiFi, Camera",
+      "energyRating": "A+++"
+    },
+    "tags": ["refrigerator", "smart", "appliance"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 56 },
+    "createdAt": { "$date": "2024-11-02T14:40:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b313" },
+    "name": "Sofa Set 3+1+1",
+    "description": "Modern leather sofa set for living room.",
+    "price": 89999,
+    "category": "Home",
+    "subcategory": "Furniture",
+    "brand": "IKEA",
+    "images": [
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc",
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc"
+    ],
+    "inventory": 15,
+    "attributes": {
+      "color": "Brown",
+      "material": "Genuine Leather",
+      "configuration": "3+1+1",
+      "style": "Modern"
+    },
+    "tags": ["sofa", "furniture", "livingroom"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 78 },
+    "createdAt": { "$date": "2024-11-12T09:15:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b314" },
+    "name": "Queen Size Bed",
+    "description": "Wooden bed with storage and comfortable mattress.",
+    "price": 45999,
+    "category": "Home",
+    "subcategory": "Furniture",
+    "brand": "Wakefit",
+    "images": [
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85",
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85"
+    ],
+    "inventory": 22,
+    "attributes": {
+      "size": "Queen",
+      "material": "Engineered Wood",
+      "storage": "Yes",
+      "mattressIncluded": "No"
+    },
+    "tags": ["bed", "furniture", "bedroom"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 112 },
+    "createdAt": { "$date": "2024-11-15T16:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b315" },
+    "name": "Kitchen Mixer Grinder",
+    "description": "750W mixer grinder with multiple jars.",
+    "price": 4499,
+    "category": "Home",
+    "subcategory": "Appliances",
+    "brand": "Preethi",
+    "images": [
+      "https://images.unsplash.com/photo-1581094794329-c8112a89af12",
+      "https://images.unsplash.com/photo-1581094794329-c8112a89af12"
+    ],
+    "inventory": 65,
+    "attributes": {
+      "power": "750W",
+      "jars": "3",
+      "warranty": "2 years",
+      "material": "Stainless Steel"
+    },
+    "tags": ["mixer", "grinder", "kitchen"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 156 },
+    "createdAt": { "$date": "2024-11-17T11:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b316" },
+    "name": "Digital Blood Pressure Monitor",
+    "description": "Automatic blood pressure monitor with LCD display.",
+    "price": 1999,
+    "category": "Health",
+    "subcategory": "Monitoring",
+    "brand": "Omron",
+    "images": [
+      "https://images.unsplash.com/photo-1559757148-5c350d0d3c56",
+      "https://images.unsplash.com/photo-1559757148-5c350d0d3c56"
+    ],
+    "inventory": 85,
+    "attributes": {
+      "type": "Digital",
+      "memory": "90 readings",
+      "cuffSize": "22-32cm",
+      "power": "Battery"
+    },
+    "tags": ["health", "monitor", "medical"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 89 },
+    "createdAt": { "$date": "2024-10-25T13:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b317" },
+    "name": "Vitamin C Serum",
+    "description": "Anti-aging serum with vitamin C and hyaluronic acid.",
+    "price": 1499,
+    "category": "Health",
+    "subcategory": "Skincare",
+    "brand": "The Ordinary",
+    "images": [
+      "https://images.unsplash.com/photo-1556228578-9c360e1d8d34",
+      "https://images.unsplash.com/photo-1556228578-9c360e1d8d34"
+    ],
+    "inventory": 120,
+    "attributes": {
+      "volume": "30ml",
+      "skinType": "All",
+      "ingredients": "Vitamin C, Hyaluronic Acid",
+      "benefits": "Anti-aging, Brightening"
+    },
+    "tags": ["skincare", "vitamin", "serum"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 234 },
+    "createdAt": { "$date": "2024-09-18T15:45:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b318" },
+    "name": "Protein Powder",
+    "description": "Whey protein isolate for muscle building and recovery.",
+    "price": 2999,
+    "category": "Health",
+    "subcategory": "Nutrition",
+    "brand": "MuscleBlaze",
+    "images": [
+      "https://images.unsplash.com/photo-1593095948071-474c5cc2989d",
+      "https://images.unsplash.com/photo-1593095948071-474c5cc2989d"
+    ],
+    "inventory": 95,
+    "attributes": {
+      "flavor": "Chocolate",
+      "weight": "1kg",
+      "proteinContent": "24g per serving",
+      "type": "Whey Isolate"
+    },
+    "tags": ["protein", "fitness", "supplement"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 189 },
+    "createdAt": { "$date": "2024-08-22T10:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b319" },
+    "name": "Yoga Mat",
+    "description": "Non-slip yoga mat with carrying strap.",
+    "price": 1299,
+    "category": "Health",
+    "subcategory": "Fitness",
+    "brand": "Adidas",
+    "images": [
+      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
+      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0"
+    ],
+    "inventory": 150,
+    "attributes": {
+      "thickness": "6mm",
+      "material": "PVC",
+      "size": "183x61cm",
+      "features": "Non-slip, Lightweight"
+    },
+    "tags": ["yoga", "fitness", "mat"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 112 },
+    "createdAt": { "$date": "2024-07-30T14:15:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b320" },
+    "name": "Electric Toothbrush",
+    "description": "Sonic electric toothbrush with multiple modes.",
+    "price": 3499,
+    "category": "Health",
+    "subcategory": "Oral Care",
+    "brand": "Oral-B",
+    "images": [
+      "https://images.unsplash.com/photo-162179148a2b46d4c1e7b2f8b",
+      "https://images.unsplash.com/photo-162179148a2b46d4c1e7b2f8b"
+    ],
+    "inventory": 78,
+    "attributes": {
+      "modes": "5",
+      "battery": "Lithium-ion",
+      "charging": "Wireless",
+      "brushHeads": "2 included"
+    },
+    "tags": ["toothbrush", "dental", "electric"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 167 },
+    "createdAt": { "$date": "2024-06-28T16:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b321" },
+    "name": "Atomic Habits",
+    "description": "An Easy & Proven Way to Build Good Habits & Break Bad Ones.",
+    "price": 599,
+    "category": "Books",
+    "subcategory": "Self-Help",
+    "brand": "Penguin",
+    "images": [
+      "https://images.unsplash.com/photo-1544947950-fa07a98d237f",
+      "https://images.unsplash.com/photo-1544947950-fa07a98d237f"
+    ],
+    "inventory": 200,
+    "attributes": {
+      "author": "James Clear",
+      "pages": 320,
+      "format": "Paperback",
+      "language": "English"
+    },
+    "tags": ["self-help", "habits", "productivity"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 456 },
+    "createdAt": { "$date": "2024-05-15T11:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b322" },
+    "name": "The Psychology of Money",
+    "description": "Timeless lessons on wealth, greed, and happiness.",
+    "price": 499,
+    "category": "Books",
+    "subcategory": "Finance",
+    "brand": "Harriman House",
+    "images": [
+      "https://images.unsplash.com/photo-1589829085413-56de8ae18c73",
+      "https://images.unsplash.com/photo-1589829085413-56de8ae18c73"
+    ],
+    "inventory": 175,
+    "attributes": {
+      "author": "Morgan Housel",
+      "pages": 256,
+      "format": "Hardcover",
+      "language": "English"
+    },
+    "tags": ["finance", "psychology", "money"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 289 },
+    "createdAt": { "$date": "2024-04-22T14:35:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b323" },
+    "name": "Python Programming",
+    "description": "Complete guide to Python programming for beginners.",
+    "price": 899,
+    "category": "Books",
+    "subcategory": "Technology",
+    "brand": "O'Reilly",
+    "images": [
+      "https://images.unsplash.com/photo-1497636577773-f1231844b336",
+      "https://images.unsplash.com/photo-1497636577773-f1231844b336"
+    ],
+    "inventory": 120,
+    "attributes": {
+      "author": "Mark Lutz",
+      "pages": 1648,
+      "format": "Paperback",
+      "language": "English"
+    },
+    "tags": ["python", "programming", "technology"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 156 },
+    "createdAt": { "$date": "2024-03-18T09:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b324" },
+    "name": "Harry Potter Box Set",
+    "description": "Complete collection of all 7 Harry Potter books.",
+    "price": 3999,
+    "category": "Books",
+    "subcategory": "Fiction",
+    "brand": "Bloomsbury",
+    "images": [
+      "https://images.unsplash.com/photo-1592496431122-2349e0fbc666",
+      "https://images.unsplash.com/photo-1592496431122-2349e0fbc666"
+    ],
+    "inventory": 65,
+    "attributes": {
+      "author": "J.K. Rowling",
+      "books": "7",
+      "format": "Hardcover",
+      "language": "English"
+    },
+    "tags": ["fiction", "fantasy", "harrypotter"],
+    "isActive": true,
+    "ratings": { "average": 4.9, "count": 567 },
+    "createdAt": { "$date": "2024-02-28T16:25:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b325" },
+    "name": "World Atlas",
+    "description": "Comprehensive world atlas with detailed maps.",
+    "price": 2499,
+    "category": "Books",
+    "subcategory": "Reference",
+    "brand": "National Geographic",
+    "images": [
+      "https://images.unsplash.com/photo-1541961017774-22349e4a1262",
+      "https://images.unsplash.com/photo-1541961017774-22349e4a1262"
+    ],
+    "inventory": 45,
+    "attributes": {
+      "publisher": "NatGeo",
+      "pages": 400,
+      "format": "Hardcover",
+      "language": "English"
+    },
+    "tags": ["atlas", "maps", "reference"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 89 },
+    "createdAt": { "$date": "2024-01-30T13:40:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b326" },
+    "name": "Football - Size 5",
+    "description": "Official size football for professional matches.",
+    "price": 1999,
+    "category": "Sports",
+    "subcategory": "Football",
+    "brand": "Nike",
+    "images": [
+      "https://images.unsplash.com/photo-1575361204480-aadea25e6e68",
+      "https://images.unsplash.com/photo-1575361204480-aadea25e6e68"
+    ],
+    "inventory": 85,
+    "attributes": {
+      "size": "Size 5",
+      "material": "Synthetic Leather",
+      "weight": "410-450g",
+      "type": "Professional"
+    },
+    "tags": ["football", "sports", "nike"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 78 },
+    "createdAt": { "$date": "2024-10-18T10:15:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b327" },
+    "name": "Cricket Bat",
+    "description": "English willow cricket bat for professional players.",
+    "price": 8999,
+    "category": "Sports",
+    "subcategory": "Cricket",
+    "brand": "SG",
+    "images": [
+      "https://images.unsplash.com/photo-1622279457486-62dcc4a4314c",
+      "https://images.unsplash.com/photo-1622279457486-62dcc4a4314c"
+    ],
+    "inventory": 32,
+    "attributes": {
+      "wood": "English Willow",
+      "size": "Short Handle",
+      "weight": "2.9-3.0 lbs",
+      "grade": "Grade 1"
+    },
+    "tags": ["cricket", "bat", "sports"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 45 },
+    "createdAt": { "$date": "2024-09-22T14:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b328" },
+    "name": "Badminton Racket",
+    "description": "Lightweight badminton racket with carbon fiber frame.",
+    "price": 2499,
+    "category": "Sports",
+    "subcategory": "Badminton",
+    "brand": "Yonex",
+    "images": [
+      "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea",
+      "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea"
+    ],
+    "inventory": 95,
+    "attributes": {
+      "weight": "85g",
+      "balance": "Head Light",
+      "gripSize": "G4",
+      "material": "Carbon Fiber"
+    },
+    "tags": ["badminton", "racket", "sports"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 112 },
+    "createdAt": { "$date": "2024-08-15T16:45:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b329" },
+    "name": "Yoga Set",
+    "description": "Complete yoga set with mat, blocks, and strap.",
+    "price": 3499,
+    "category": "Sports",
+    "subcategory": "Yoga",
+    "brand": "Decathlon",
+    "images": [
+      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
+      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0"
+    ],
+    "inventory": 68,
+    "attributes": {
+      "items": "Mat, 2 Blocks, Strap",
+      "matThickness": "6mm",
+      "material": "Eco-friendly",
+      "color": "Purple"
+    },
+    "tags": ["yoga", "fitness", "set"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 89 },
+    "createdAt": { "$date": "2024-07-28T11:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b330" },
+    "name": "Tennis Racket",
+    "description": "Professional tennis racket with graphite construction.",
+    "price": 5999,
+    "category": "Sports",
+    "subcategory": "Tennis",
+    "brand": "Wilson",
+    "images": [
+      "https://images.unsplash.com/photo-1622279457486-62dcc4a4314c",
+      "https://images.unsplash.com/photo-1622279457486-62dcc4a4314c"
+    ],
+    "inventory": 42,
+    "attributes": {
+      "weight": "300g",
+      "headSize": "100 sq.in",
+      "gripSize": "4 3/8",
+      "material": "Graphite"
+    },
+    "tags": ["tennis", "racket", "sports"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 56 },
+    "createdAt": { "$date": "2024-06-30T15:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b331" },
+    "name": "Basmati Rice",
+    "description": "Premium quality basmati rice, aged for perfect flavor.",
+    "price": 899,
+    "category": "Groceries",
+    "subcategory": "Grains",
+    "brand": "India Gate",
+    "images": [
+      "https://images.unsplash.com/photo-1586201375761-83865001e31c",
+      "https://images.unsplash.com/photo-1586201375761-83865001e31c"
+    ],
+    "inventory": 500,
+    "attributes": {
+      "weight": "5kg",
+      "type": "Basmati",
+      "age": "1 year aged",
+      "quality": "Premium"
+    },
+    "tags": ["rice", "basmati", "grains"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 234 },
+    "createdAt": { "$date": "2024-10-05T09:25:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b332" },
+    "name": "Extra Virgin Olive Oil",
+    "description": "Cold pressed extra virgin olive oil from Italy.",
+    "price": 1299,
+    "category": "Groceries",
+    "subcategory": "Oils",
+    "brand": "Bertolli",
+    "images": [
+      "https://images.unsplash.com/photo-1533050487297-09b450131914",
+      "https://images.unsplash.com/photo-1533050487297-09b450131914"
+    ],
+    "inventory": 180,
+    "attributes": {
+      "volume": "1L",
+      "type": "Extra Virgin",
+      "origin": "Italy",
+      "extraction": "Cold Pressed"
+    },
+    "tags": ["olive oil", "cooking", "healthy"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 189 },
+    "createdAt": { "$date": "2024-09-12T14:40:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b333" },
+    "name": "Organic Honey",
+    "description": "Pure organic honey without any additives.",
+    "price": 699,
+    "category": "Groceries",
+    "subcategory": "Sweeteners",
+    "brand": "Dabur",
+    "images": [
+      "https://images.unsplash.com/photo-1587049352846-4a222e784d38",
+      "https://images.unsplash.com/photo-1587049352846-4a222e784d38"
+    ],
+    "inventory": 250,
+    "attributes": {
+      "weight": "500g",
+      "type": "Organic",
+      "purity": "100%",
+      "source": "Multiflora"
+    },
+    "tags": ["honey", "organic", "sweetener"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 156 },
+    "createdAt": { "$date": "2024-08-20T11:15:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b334" },
+    "name": "Almonds",
+    "description": "Premium California almonds, rich in nutrients.",
+    "price": 999,
+    "category": "Groceries",
+    "subcategory": "Nuts",
+    "brand": "Wonderful",
+    "images": [
+      "https://images.unsplash.com/photo-1623334044303-241021148842",
+      "https://images.unsplash.com/photo-1623334044303-241021148842"
+    ],
+    "inventory": 320,
+    "attributes": {
+      "weight": "500g",
+      "type": "California",
+      "quality": "Premium",
+      "roasted": "No"
+    },
+    "tags": ["almonds", "nuts", "healthy"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 267 },
+    "createdAt": { "$date": "2024-07-25T16:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b335" },
+    "name": "Green Tea",
+    "description": "Antioxidant rich green tea from Darjeeling.",
+    "price": 499,
+    "category": "Groceries",
+    "subcategory": "Beverages",
+    "brand": "Taj Mahal",
+    "images": [
+      "https://images.unsplash.com/photo-1561047029-3000c68339ca",
+      "https://images.unsplash.com/photo-1561047029-3000c68339ca"
+    ],
+    "inventory": 420,
+    "attributes": {
+      "weight": "250g",
+      "type": "Green Tea",
+      "origin": "Darjeeling",
+      "flavor": "Natural"
+    },
+    "tags": ["tea", "green tea", "beverage"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 178 },
+    "createdAt": { "$date": "2024-06-18T13:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b336" },
+    "name": "Car Tyre - 185/65 R15",
+    "description": "All-season car tyre with excellent grip and durability.",
+    "price": 5999,
+    "category": "Automotive",
+    "subcategory": "Tyres",
+    "brand": "MRF",
+    "images": [
+      "https://images.unsplash.com/photo-1555212697-194d092e3b8f",
+      "https://images.unsplash.com/photo-1555212697-194d092e3b8f"
+    ],
+    "inventory": 85,
+    "attributes": {
+      "size": "185/65 R15",
+      "type": "Tubeless",
+      "season": "All Season",
+      "warranty": "5 years"
+    },
+    "tags": ["tyre", "car", "automotive"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 89 },
+    "createdAt": { "$date": "2024-10-22T10:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b337" },
+    "name": "Car Battery",
+    "description": "Maintenance-free car battery with high cranking power.",
+    "price": 7999,
+    "category": "Automotive",
+    "subcategory": "Batteries",
+    "brand": "Exide",
+    "images": [
+      "https://images.unsplash.com/photo-1593941707882-a5bba5338fe2",
+      "https://images.unsplash.com/photo-1593941707882-a5bba5338fe2"
+    ],
+    "inventory": 45,
+    "attributes": {
+      "capacity": "70Ah",
+      "voltage": "12V",
+      "type": "Maintenance Free",
+      "warranty": "3 years"
+    },
+    "tags": ["battery", "car", "automotive"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 67 },
+    "createdAt": { "$date": "2024-09-28T14:35:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b338" },
+    "name": "Car Cover",
+    "description": "Waterproof car cover with UV protection.",
+    "price": 2499,
+    "category": "Automotive",
+    "subcategory": "Accessories",
+    "brand": "Autofy",
+    "images": [
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341"
+    ],
+    "inventory": 120,
+    "attributes": {
+      "size": "Medium Car",
+      "material": "Polyester",
+      "features": "Waterproof, UV Protected",
+      "color": "Gray"
+    },
+    "tags": ["car cover", "accessory", "protection"],
+    "isActive": true,
+    "ratings": { "average": 4.3, "count": 45 },
+    "createdAt": { "$date": "2024-08-30T16:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b339" },
+    "name": "Engine Oil",
+    "description": "Fully synthetic engine oil for better performance.",
+    "price": 1299,
+    "category": "Automotive",
+    "subcategory": "Lubricants",
+    "brand": "Castrol",
+    "images": [
+      "https://images.unsplash.com/photo-1629734710239-d70d61b5c5b5",
+      "https://images.unsplash.com/photo-1629734710239-d70d61b5c5b5"
+    ],
+    "inventory": 180,
+    "attributes": {
+      "grade": "5W-30",
+      "type": "Fully Synthetic",
+      "volume": "1L",
+      "api": "SN/CF"
+    },
+    "tags": ["engine oil", "lubricant", "automotive"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 112 },
+    "createdAt": { "$date": "2024-07-22T11:25:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b340" },
+    "name": "Car Wash Kit",
+    "description": "Complete car washing kit with shampoo and microfiber cloth.",
+    "price": 1499,
+    "category": "Automotive",
+    "subcategory": "Cleaning",
+    "brand": "3M",
+    "images": [
+      "https://images.unsplash.com/photo-1565689221354-d87f85d4aee2",
+      "https://images.unsplash.com/photo-1565689221354-d87f85d4aee2"
+    ],
+    "inventory": 95,
+    "attributes": {
+      "items": "Shampoo, Wax, Cloth, Sponge",
+      "volume": "1L",
+      "suitable": "All Cars",
+      "fragrance": "Lemon"
+    },
+    "tags": ["car wash", "cleaning", "kit"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 78 },
+    "createdAt": { "$date": "2024-06-15T15:40:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b341" },
+    "name": "PlayStation 5",
+    "description": "Next-gen gaming console with 4K gaming and ray tracing.",
+    "price": 49999,
+    "category": "Entertainment",
+    "subcategory": "Gaming",
+    "brand": "Sony",
+    "images": [
+      "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3",
+      "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3"
+    ],
+    "inventory": 25,
+    "attributes": {
+      "storage": "825GB SSD",
+      "resolution": "4K",
+      "controller": "DualSense",
+      "features": "Ray Tracing"
+    },
+    "tags": ["playstation", "gaming", "console"],
+    "isActive": true,
+    "ratings": { "average": 4.9, "count": 189 },
+    "createdAt": { "$date": "2024-11-05T12:15:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b342" },
+    "name": "Bluetooth Speaker",
+    "description": "Portable Bluetooth speaker with 20-hour battery.",
+    "price": 3499,
+    "category": "Entertainment",
+    "subcategory": "Audio",
+    "brand": "JBL",
+    "images": [
+      "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1",
+      "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1"
+    ],
+    "inventory": 85,
+    "attributes": {
+      "power": "20W",
+      "battery": "20 hours",
+      "connectivity": "Bluetooth 5.0",
+      "waterproof": "IPX7"
+    },
+    "tags": ["speaker", "bluetooth", "audio"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 234 },
+    "createdAt": { "$date": "2024-10-15T14:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b343" },
+    "name": "4K Action Camera",
+    "description": "Waterproof action camera for adventure sports.",
+    "price": 29999,
+    "category": "Entertainment",
+    "subcategory": "Cameras",
+    "brand": "GoPro",
+    "images": [
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32",
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32"
+    ],
+    "inventory": 42,
+    "attributes": {
+      "resolution": "4K 60fps",
+      "waterproof": "10m",
+      "stabilization": "HyperSmooth",
+      "battery": "Removable"
+    },
+    "tags": ["gopro", "camera", "action"],
+    "isActive": true,
+    "ratings": { "average": 4.8, "count": 156 },
+    "createdAt": { "$date": "2024-09-20T16:45:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b344" },
+    "name": "Smart Projector",
+    "description": "Full HD smart projector with built-in Android TV.",
+    "price": 44999,
+    "category": "Entertainment",
+    "subcategory": "Projectors",
+    "brand": "XGIMI",
+    "images": [
+      "https://images.unsplash.com/photo-1563297007-0686b7003af7",
+      "https://images.unsplash.com/photo-1563297007-0686b7003af7"
+    ],
+    "inventory": 28,
+    "attributes": {
+      "resolution": "1080p",
+      "brightness": "800 ANSI",
+      "smartOS": "Android TV",
+      "throwRatio": "1.2:1"
+    },
+    "tags": ["projector", "smart", "entertainment"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 89 },
+    "createdAt": { "$date": "2024-08-25T11:20:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b345" },
+    "name": "Karaoke Microphone",
+    "description": "Wireless karaoke microphone with LED lights.",
+    "price": 2499,
+    "category": "Entertainment",
+    "subcategory": "Karaoke",
+    "brand": "Boya",
+    "images": [
+      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
+      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4"
+    ],
+    "inventory": 95,
+    "attributes": {
+      "connectivity": "Bluetooth",
+      "battery": "8 hours",
+      "features": "LED Lights, Echo",
+      "compatibility": "All Devices"
+    },
+    "tags": ["microphone", "karaoke", "wireless"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 112 },
+    "createdAt": { "$date": "2024-07-30T15:50:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b346" },
+    "name": "Lego Classic Set",
+    "description": "Creative building blocks set with 1000+ pieces.",
+    "price": 3499,
+    "category": "Toys",
+    "subcategory": "Building Blocks",
+    "brand": "LEGO",
+    "images": [
+      "https://images.unsplash.com/photo-1587654780298-8c6d6b2c8b2a",
+      "https://images.unsplash.com/photo-1587654780298-8c6d6b2c8b2a"
+    ],
+    "inventory": 65,
+    "attributes": {
+      "pieces": 1100,
+      "age": "4+",
+      "type": "Creative",
+      "theme": "Classic"
+    },
+    "tags": ["lego", "blocks", "toys"],
+    "isActive": true,
+    "ratings": { "average": 4.9, "count": 278 },
+    "createdAt": { "$date": "2024-10-28T10:25:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b347" },
+    "name": "Remote Control Car",
+    "description": "2.4GHz remote control car with rechargeable battery.",
+    "price": 1999,
+    "category": "Toys",
+    "subcategory": "Remote Control",
+    "brand": "Hot Wheels",
+    "images": [
+      "https://images.unsplash.com/photo-1553452118-621e1f860f43",
+      "https://images.unsplash.com/photo-1553452118-621e1f860f43"
+    ],
+    "inventory": 85,
+    "attributes": {
+      "scale": "1:14",
+      "control": "2.4GHz",
+      "battery": "Rechargeable",
+      "speed": "15 km/h"
+    },
+    "tags": ["rc car", "remote", "toys"],
+    "isActive": true,
+    "ratings": { "average": 4.6, "count": 134 },
+    "createdAt": { "$date": "2024-09-30T14:40:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b348" },
+    "name": "Barbie Doll Set",
+    "description": "Fashion doll set with multiple outfits and accessories.",
+    "price": 2499,
+    "category": "Toys",
+    "subcategory": "Dolls",
+    "brand": "Barbie",
+    "images": [
+      "https://images.unsplash.com/photo-1593990965216-9c6a6c6b6b6b",
+      "https://images.unsplash.com/photo-1593990965216-9c6a6c6b6b6b"
+    ],
+    "inventory": 72,
+    "attributes": {
+      "dolls": "1",
+      "outfits": "3",
+      "accessories": "Multiple",
+      "age": "3+"
+    },
+    "tags": ["barbie", "doll", "toys"],
+    "isActive": true,
+    "ratings": { "average": 4.7, "count": 189 },
+    "createdAt": { "$date": "2024-08-22T16:55:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b349" },
+    "name": "Educational Tablet",
+    "description": "Kids learning tablet with educational games.",
+    "price": 3999,
+    "category": "Toys",
+    "subcategory": "Educational",
+    "brand": "LeapFrog",
+    "images": [
+      "https://images.unsplash.com/photo-1581094794329-c8112a89af12",
+      "https://images.unsplash.com/photo-1581094794329-c8112a89af12"
+    ],
+    "inventory": 48,
+    "attributes": {
+      "screen": "7 inch",
+      "battery": "Rechargeable",
+      "content": "Educational Games",
+      "age": "3-8 years"
+    },
+    "tags": ["tablet", "educational", "toys"],
+    "isActive": true,
+    "ratings": { "average": 4.5, "count": 112 },
+    "createdAt": { "$date": "2024-07-18T11:30:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  },
+  {
+    "_id": { "$oid": "67367c5882f7b6e20ac9b350" },
+    "name": "Puzzle Set",
+    "description": "500-piece jigsaw puzzle with beautiful scenery.",
+    "price": 899,
+    "category": "Toys",
+    "subcategory": "Puzzles",
+    "brand": "Ravensburger",
+    "images": [
+      "https://images.unsplash.com/photo-1589244159943-4601a3f51c8c",
+      "https://images.unsplash.com/photo-1589244159943-4601a3f51c8c"
+    ],
+    "inventory": 120,
+    "attributes": {
+      "pieces": 500,
+      "age": "8+",
+      "theme": "Landscape",
+      "size": "50x70cm"
+    },
+    "tags": ["puzzle", "jigsaw", "toys"],
+    "isActive": true,
+    "ratings": { "average": 4.4, "count": 78 },
+    "createdAt": { "$date": "2024-06-25T15:45:00.000Z" },
+    "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" }
+  }
+]
+
+
+
+
+{ "_id": { "$oid": "67367c5882f7b6e20ac9b301" }, "name": "iPhone 15 Pro", "description": "Latest Apple iPhone with A17 Pro chip and titanium design.", "price": 129999, "category": "Electronics", "subcategory": "Smartphones", "brand": "Apple", "images": [ "https://images.unsplash.com/photo-1695048133142-1a20484d2569", "https://images.unsplash.com/photo-1695048133025-c6c45ea7ac73" ], "inventory": 45, "attributes": { "color": "Natural Titanium", "storage": "256GB", "display": "6.1 inch OLED", "battery": "3650mAh" }, "tags": [ "apple", "iphone", "premium" ], "isActive": true, "ratings": { "average": 4.8, "count": 156 }, "createdAt": { "$date": "2024-01-15T10:30:00.000Z" }, "updatedAt": { "$date": "2024-11-18T14:43:07.436Z" } }

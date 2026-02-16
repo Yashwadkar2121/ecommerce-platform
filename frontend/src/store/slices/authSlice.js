@@ -1,3 +1,4 @@
+// frontend/src/store/slices/authSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { authService } from "../../services/authService";
 
@@ -11,7 +12,7 @@ export const loginUser = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || "Login failed");
     }
-  }
+  },
 );
 
 // Register User thunk
@@ -23,10 +24,10 @@ export const registerUser = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.error || "Registration failed"
+        error.response?.data?.error || "Registration failed",
       );
     }
-  }
+  },
 );
 
 // Load User thunk
@@ -51,7 +52,7 @@ export const loadUser = createAsyncThunk(
 
       return rejectWithValue(errorMessage);
     }
-  }
+  },
 );
 
 // Update Profile thunk
@@ -70,10 +71,10 @@ export const updateProfile = createAsyncThunk(
         return rejectWithValue(errorMessages);
       }
       return rejectWithValue(
-        error.response?.data?.error || "Failed to update profile"
+        error.response?.data?.error || "Failed to update profile",
       );
     }
-  }
+  },
 );
 
 // Change Password thunk
@@ -83,7 +84,7 @@ export const changePassword = createAsyncThunk(
     try {
       const response = await authService.changePassword(
         currentPassword,
-        newPassword
+        newPassword,
       );
       return response.data;
     } catch (error) {
@@ -95,10 +96,10 @@ export const changePassword = createAsyncThunk(
         return rejectWithValue(errorMessages);
       }
       return rejectWithValue(
-        error.response?.data?.error || "Failed to change password"
+        error.response?.data?.error || "Failed to change password",
       );
     }
-  }
+  },
 );
 
 // Forgot Password - Send OTP
@@ -110,10 +111,10 @@ export const forgotPassword = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.error || "Failed to send OTP"
+        error.response?.data?.error || "Failed to send OTP",
       );
     }
-  }
+  },
 );
 
 // Resend OTP
@@ -125,10 +126,10 @@ export const resendOTP = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.error || "Failed to resend OTP"
+        error.response?.data?.error || "Failed to resend OTP",
       );
     }
-  }
+  },
 );
 
 // Verify OTP
@@ -141,7 +142,7 @@ export const verifyOTP = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || "Invalid OTP");
     }
-  }
+  },
 );
 
 // Reset Password
@@ -153,10 +154,10 @@ export const resetPassword = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.error || "Failed to reset password"
+        error.response?.data?.error || "Failed to reset password",
       );
     }
-  }
+  },
 );
 
 const authSlice = createSlice({
@@ -253,7 +254,7 @@ const authSlice = createSlice({
         localStorage.setItem("token", action.payload.tokens.accessToken);
         localStorage.setItem(
           "refreshToken",
-          action.payload.tokens.refreshToken
+          action.payload.tokens.refreshToken,
         );
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -276,7 +277,7 @@ const authSlice = createSlice({
         localStorage.setItem("token", action.payload.tokens.accessToken);
         localStorage.setItem(
           "refreshToken",
-          action.payload.tokens.refreshToken
+          action.payload.tokens.refreshToken,
         );
       })
       .addCase(registerUser.rejected, (state, action) => {

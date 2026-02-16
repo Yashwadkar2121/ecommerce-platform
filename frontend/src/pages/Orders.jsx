@@ -190,7 +190,7 @@ const Orders = () => {
               order history here.
             </p>
             <button
-              onClick={() => (window.location.href = "/products")}
+              onClick={() => (window.location.href = "/")}
               className="bg-primary-600 text-black px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
             >
               Start Shopping

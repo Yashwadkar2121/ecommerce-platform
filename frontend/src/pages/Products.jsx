@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X, Filter } from "lucide-react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import {
   fetchProducts,
@@ -11,7 +11,7 @@ import {
 } from "../store/slices/productSlice";
 
 // Import the separate components
-import Categories from "../components/Home/Categories";
+import Categories from "../components/Product/Categories";
 import FilterSection from "../components/Product/FilterSection";
 import InfiniteScrollLoader from "../components/Product/InfiniteScrollLoader";
 import ProductCard from "../components/Product/ProductCard";
@@ -33,6 +33,7 @@ const ActiveFilterBadge = ({ label, onClear, value }) => (
 
 const Products = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const {
     items: products,
     loading,
@@ -42,7 +43,7 @@ const Products = () => {
   } = useAppSelector((state) => state.products);
 
   // Add URL parameter handling
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
 
   const [categories, setCategories] = useState([]);
@@ -55,6 +56,20 @@ const Products = () => {
     }
     return products.length;
   }, [products.length, pagination.hasMore, pagination.total, loadingMore]);
+
+  // Calculate category brands for the header
+  const categoryBrands = useMemo(() => {
+    if (!filters.category || products.length === 0) return [];
+
+    return [
+      ...new Set(
+        products
+          .filter((p) => p.category === filters.category)
+          .map((p) => p.brand)
+          .filter(Boolean)
+      ),
+    ].sort();
+  }, [products, filters.category]);
 
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && pagination.hasMore) {
@@ -97,6 +112,22 @@ const Products = () => {
     setHasInitialized(true);
   }, [searchParams, dispatch, hasInitialized]);
 
+  // Update URL when filters change
+  useEffect(() => {
+    if (!hasInitialized) return;
+
+    const params = new URLSearchParams();
+
+    if (filters.category) params.set("category", filters.category);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.brand) params.set("brand", filters.brand);
+    if (filters.minPrice) params.set("minPrice", filters.minPrice);
+    if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
+
+    // Replace the current URL with updated params
+    navigate(`?${params.toString()}`, { replace: true });
+  }, [filters, hasInitialized, navigate]);
+
   // Fetch products when filters change (excluding initial mount)
   useEffect(() => {
     if (!hasInitialized) return;
@@ -107,7 +138,7 @@ const Products = () => {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [dispatch, filters, hasInitialized, location.key]); // Use location.key to detect navigation
+  }, [dispatch, filters, hasInitialized, location.key]);
 
   useEffect(() => {
     if (products.length > 0) {
@@ -120,12 +151,32 @@ const Products = () => {
     }
   }, [products]);
 
+  const handleCategoryClick = (categoryName) => {
+    // Apply the selected category filter
+    dispatch(
+      setFilters({
+        ...filters,
+        category: categoryName,
+        brand: "", // Clear brand filter when category changes
+        page: 1, // Reset to first page
+      })
+    );
+
+    // Scroll to top of products section
+    window.scrollTo({
+      top: document.querySelector(".min-h-screen").offsetTop + 100,
+      behavior: "smooth",
+    });
+  };
+
   const handleFilterChange = (key, value) => {
     dispatch(setFilters({ ...filters, [key]: value, page: 1 }));
   };
 
   const clearAllFilters = () => {
     dispatch(clearFilters());
+    // Clear URL params too
+    navigate("", { replace: true });
   };
 
   const handleClearFilter = (filterType) => {
@@ -160,15 +211,25 @@ const Products = () => {
   const getCategoryTitle = () => {
     const categoryMap = {
       electronics: "Electronics",
+      Electronics: "Electronics",
       fashion: "Fashion",
+      Fashion: "Fashion",
       home: "Home & Garden",
+      Home: "Home & Garden",
       health: "Health & Beauty",
+      Health: "Health & Beauty",
       books: "Books",
+      Books: "Books",
       sports: "Sports",
+      Sports: "Sports",
       groceries: "Groceries",
+      Groceries: "Groceries",
       automotive: "Automotive",
+      Automotive: "Automotive",
       entertainment: "Entertainment",
+      Entertainment: "Entertainment",
       toys: "Toys & Games",
+      Toys: "Toys & Games",
     };
 
     if (filters.category) {
@@ -183,6 +244,11 @@ const Products = () => {
       filters.category || filters.brand || filters.minPrice || filters.maxPrice
     );
   }, [filters.category, filters.brand, filters.minPrice, filters.maxPrice]);
+
+  // Get total products count
+  const totalProducts = useMemo(() => {
+    return products.length > 0 ? pagination.total : 0;
+  }, [products.length, pagination.total]);
 
   if (loading && products.length === 0) {
     return (
@@ -210,7 +276,7 @@ const Products = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         {/* Categories Section */}
         <div className="mb-6 sm:mb-8">
-          <Categories />
+          <Categories onCategoryClick={handleCategoryClick} />
         </div>
 
         {/* Mobile Header */}
@@ -222,12 +288,12 @@ const Products = () => {
                 <span className="font-semibold text-gray-900">
                   {displayedCount}
                 </span>
-                {pagination.total > 0 && (
+                {totalProducts > 0 && (
                   <>
                     {" "}
                     of{" "}
                     <span className="font-semibold text-gray-900">
-                      {pagination.total}
+                      {totalProducts}
                     </span>{" "}
                     products
                   </>
@@ -322,11 +388,11 @@ const Products = () => {
                 <span className="font-semibold text-gray-900">
                   {displayedCount}
                 </span>{" "}
-                {pagination.total > 0 && (
+                {totalProducts > 0 && (
                   <>
                     of{" "}
                     <span className="font-semibold text-gray-900">
-                      {pagination.total}
+                      {totalProducts}
                     </span>{" "}
                     products
                   </>
@@ -417,38 +483,52 @@ const Products = () => {
 
           {/* Products Grid */}
           <div className="flex-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
-              <AnimatePresence>
-                {products.map((product, index) => (
-                  <ProductCard
-                    key={`${product._id}-${index}`}
-                    product={product}
-                    index={index % 20}
+            {products.length > 0 ? (
+              <>
+                {/* Products Count for the filtered results */}
+                {filters.category && (
+                  <div className="mb-4 text-sm text-gray-600">
+                    Found {displayedCount} products in{" "}
+                    <span className="font-semibold text-gray-900">
+                      {filters.category}
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
+                  <AnimatePresence>
+                    {products.map((product, index) => (
+                      <ProductCard
+                        key={`${product._id}-${index}`}
+                        product={product}
+                        index={index % 20}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                {/* Infinite Scroll Loader */}
+                {products.length > 0 && pagination.hasMore && (
+                  <InfiniteScrollLoader
+                    loadMore={handleLoadMore}
+                    hasMore={pagination.hasMore}
+                    loadingMore={loadingMore}
                   />
-                ))}
-              </AnimatePresence>
-            </div>
+                )}
 
-            {/* Infinite Scroll Loader */}
-            {products.length > 0 && pagination.hasMore && (
-              <InfiniteScrollLoader
-                loadMore={handleLoadMore}
-                hasMore={pagination.hasMore}
-                loadingMore={loadingMore}
-              />
-            )}
-
-            {/* Show end message when all products loaded */}
-            {products.length > 0 && !pagination.hasMore && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">
-                  All {pagination.total} products loaded
-                </p>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {products.length === 0 && !loading && (
+                {/* Show end message when all products loaded */}
+                {products.length > 0 && !pagination.hasMore && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">
+                      {filters.category
+                        ? `All ${totalProducts} ${filters.category.toLowerCase()} products loaded`
+                        : `All ${totalProducts} products loaded`}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Empty State */
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

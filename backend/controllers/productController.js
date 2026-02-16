@@ -1,25 +1,10 @@
-const Product = require("../models/mongodb/Product");
-const Review = require("../models/mongodb/Review");
-const { paginate } = require("../utils/helpers");
+// controllers/productController.js
+const ProductService = require("../services/productService");
 const { client } = require("../utils/redis");
 
-/**
- * Get all products (Public - only active products) - Optimized
- */
+// Get all products (Public - only active products)
 const getProducts = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 24, // Increased for better infinite scroll
-      category,
-      brand,
-      minPrice,
-      maxPrice,
-      search,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-    } = req.query;
-
     // Create cache key
     const cacheKey = `products:${JSON.stringify(req.query)}`;
 
@@ -29,80 +14,19 @@ const getProducts = async (req, res) => {
       return res.json(JSON.parse(cached));
     }
 
-    // Build filter object - ONLY active products for public
-    const filter = { isActive: true };
-
-    if (category) filter.category = category;
-    if (brand) filter.brand = brand;
-
-    // Price range filter optimization
-    if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
-    }
-
-    // Text search with index
-    if (search) {
-      filter.$text = { $search: search };
-    }
-
-    // Sort options - optimized common sorts
-    let sort = {};
-    if (sortBy === "price" || sortBy === "createdAt") {
-      sort[sortBy] = sortOrder === "desc" ? -1 : 1;
-    } else if (sortBy === "ratings.average") {
-      sort = { "ratings.average": -1 };
-    } else if (sortBy === "name") {
-      sort = { name: 1 };
-    }
-
-    const { limit: queryLimit, offset } = paginate(page, limit);
-
-    // Use Promise.all for parallel execution
-    const [products, total] = await Promise.all([
-      Product.find(filter)
-        .sort(sort)
-        .limit(queryLimit)
-        .skip(offset)
-        .select(
-          "_id name price brand category images inventory ratings description"
-        )
-        .lean(),
-      Product.countDocuments(filter),
-    ]);
-
-    // Ensure total is a number
-    const totalCount = Number(total) || 0;
-
-    const totalPages = Math.ceil(totalCount / queryLimit);
-    const currentPage = parseInt(page) || 1;
-
-    const response = {
-      products,
-      pagination: {
-        page: currentPage,
-        limit: queryLimit,
-        total: totalCount,
-        totalPages,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1,
-      },
-    };
+    const result = await ProductService.getProducts(req.query);
 
     // Cache for 5 minutes
-    await client.setEx(cacheKey, 300, JSON.stringify(response));
+    await client.setEx(cacheKey, 300, JSON.stringify(result));
 
-    res.json(response);
+    res.json(result);
   } catch (error) {
     console.error("Get products error:", error);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 };
 
-/**
- * Get product by ID - Optimized with Redis
- */
+// Get product by ID
 const getProductById = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -114,40 +38,25 @@ const getProductById = async (req, res) => {
       return res.json(JSON.parse(cached));
     }
 
-    const product = await Product.findById(productId).lean();
-
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
-    // Get reviews in parallel
-    const reviews = Review.find({ productId })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
-
-    const response = {
-      product,
-      reviews: {
-        items: await reviews,
-        averageRating: product.ratings.average,
-        totalReviews: product.ratings.count,
-      },
-    };
+    const result = await ProductService.getProductById(productId);
 
     // Cache for 10 minutes
-    await client.setEx(cacheKey, 600, JSON.stringify(response));
+    await client.setEx(cacheKey, 600, JSON.stringify(result));
 
-    res.json(response);
+    res.json(result);
   } catch (error) {
     console.error("Get product by ID error:", error);
-    res.status(500).json({ error: "Failed to fetch product" });
+    if (error.message === "Product not found") {
+      res.status(404).json({ error: error.message });
+    } else if (error.message === "Product is not available") {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to fetch product" });
+    }
   }
 };
 
-/**
- * Get all product categories - Optimized with caching
- */
+// Get all product categories
 const getProductCategories = async (req, res) => {
   try {
     const cacheKey = "product:categories";
@@ -157,25 +66,19 @@ const getProductCategories = async (req, res) => {
       return res.json(JSON.parse(cached));
     }
 
-    const categories = await Product.distinct("category", { isActive: true })
-      .sort()
-      .limit(50); // Limit to prevent too many categories
-
-    const response = { categories };
+    const result = await ProductService.getProductCategories();
 
     // Cache for 1 hour
-    await client.setEx(cacheKey, 3600, JSON.stringify(response));
+    await client.setEx(cacheKey, 3600, JSON.stringify(result));
 
-    res.json(response);
+    res.json(result);
   } catch (error) {
     console.error("Get categories error:", error);
     res.status(500).json({ error: "Failed to fetch categories" });
   }
 };
 
-/**
- * Get all product brands - Optimized with caching
- */
+// Get all product brands
 const getProductBrands = async (req, res) => {
   try {
     const cacheKey = "product:brands";
@@ -185,86 +88,51 @@ const getProductBrands = async (req, res) => {
       return res.json(JSON.parse(cached));
     }
 
-    const brands = await Product.distinct("brand", { isActive: true })
-      .sort()
-      .limit(100); // Limit to prevent too many brands
-
-    const response = { brands };
+    const result = await ProductService.getProductBrands();
 
     // Cache for 1 hour
-    await client.setEx(cacheKey, 3600, JSON.stringify(response));
+    await client.setEx(cacheKey, 3600, JSON.stringify(result));
 
-    res.json(response);
+    res.json(result);
   } catch (error) {
     console.error("Get brands error:", error);
     res.status(500).json({ error: "Failed to fetch brands" });
   }
 };
 
-/**
- * Add review to product (Authenticated users only)
- */
+//  Add review to product (Authenticated users only)
 const addProductReview = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { rating, title, comment } = req.body;
     const userId = req.user.id;
 
-    // Validate rating
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Rating must be between 1 and 5" });
-    }
-
-    // Check if product exists and is active
-    const product = await Product.findOne({ _id: productId, isActive: true });
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
-    // Check if user already reviewed this product
-    const existingReview = await Review.findOne({ productId, userId });
-    if (existingReview) {
-      return res
-        .status(400)
-        .json({ error: "You have already reviewed this product" });
-    }
-
-    // Create review
-    const review = new Review({
+    const result = await ProductService.addProductReview(
       productId,
       userId,
-      rating,
-      title,
-      comment,
-    });
-    await review.save();
-
-    // Update product ratings
-    const reviews = await Review.find({ productId });
-    const averageRating =
-      reviews.reduce((sum, rev) => sum + rev.rating, 0) / reviews.length;
-
-    await Product.findByIdAndUpdate(productId, {
-      "ratings.average": parseFloat(averageRating.toFixed(1)),
-      "ratings.count": reviews.length,
-    });
+      req.body
+    );
 
     // Clear product cache
+    await client.del(`product:${productId}`);
     await client.del(`cache:/api/products/${productId}`);
 
-    res.status(201).json({
-      message: "Review added successfully",
-      review,
-    });
+    res.status(201).json(result);
   } catch (error) {
     console.error("Add review error:", error);
-    res.status(400).json({ error: "Failed to add review" });
+    if (error.message === "Product not found") {
+      res.status(404).json({ error: error.message });
+    } else if (
+      error.message === "Rating must be between 1 and 5" ||
+      error.message === "You have already reviewed this product"
+    ) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(400).json({ error: "Failed to add review" });
+    }
   }
 };
 
-/**
- * Get brands by category (Public)
- */
+// Get brands by category
 const getBrandsByCategory = async (req, res) => {
   try {
     const { category } = req.query;
@@ -276,22 +144,51 @@ const getBrandsByCategory = async (req, res) => {
       return res.json(JSON.parse(cached));
     }
 
-    const filter = { isActive: true };
-    if (category) {
-      filter.category = category;
-    }
-
-    const brands = await Product.distinct("brand", filter).sort().limit(100);
-
-    const response = { brands };
+    const result = await ProductService.getBrandsByCategory(category);
 
     // Cache for 1 hour
-    await client.setEx(cacheKey, 3600, JSON.stringify(response));
+    await client.setEx(cacheKey, 3600, JSON.stringify(result));
 
-    res.json(response);
+    res.json(result);
   } catch (error) {
     console.error("Get brands by category error:", error);
     res.status(500).json({ error: "Failed to fetch brands" });
+  }
+};
+
+// Search products
+const searchProducts = async (req, res) => {
+  try {
+    const { q, limit = 10 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.json({ products: [], suggestions: [] });
+    }
+
+    const result = await ProductService.searchProducts(q, parseInt(limit));
+
+    res.json(result);
+  } catch (error) {
+    console.error("Search products error:", error);
+    res.status(500).json({ error: "Failed to search products" });
+  }
+};
+
+// Get related products
+const getRelatedProducts = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { limit = 8 } = req.query;
+
+    const result = await ProductService.getRelatedProducts(
+      productId,
+      parseInt(limit)
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error("Get related products error:", error);
+    res.status(500).json({ error: "Failed to fetch related products" });
   }
 };
 
@@ -302,4 +199,6 @@ module.exports = {
   getProductBrands,
   addProductReview,
   getBrandsByCategory,
+  searchProducts,
+  getRelatedProducts,
 };

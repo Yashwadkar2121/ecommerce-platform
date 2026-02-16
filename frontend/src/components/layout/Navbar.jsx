@@ -1,4 +1,4 @@
-// Navbar.Jsx
+// frontend/src/components/layout/Navbar.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -268,11 +268,10 @@ const LogoutConfirmation = ({
 }) => {
   const modalRef = useRef(null);
 
-  // Focus trap for modal
   useEffect(() => {
     if (showLogoutConfirm && modalRef.current) {
       const focusableElements = modalRef.current.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       );
       const firstElement = focusableElements[0];
       const lastElement = focusableElements[focusableElements.length - 1];
@@ -371,11 +370,10 @@ const LogoutConfirmation = ({
 const MobileMenu = ({ isOpen, onClose, items }) => {
   const menuRef = useRef(null);
 
-  // Keyboard navigation for mobile menu
   useEffect(() => {
     if (isOpen && menuRef.current) {
       const focusableElements = menuRef.current.querySelectorAll(
-        "a[href], button:not([disabled])"
+        "a[href], button:not([disabled])",
       );
 
       if (focusableElements.length > 0) {
@@ -439,7 +437,7 @@ const Navbar = () => {
         dispatch(setFilters({ ...filters, search: query.trim() }));
         setIsSearching(false);
       }, 300),
-    [dispatch, filters]
+    [dispatch, filters],
   );
 
   // Trigger cart animation when item is added
@@ -503,6 +501,7 @@ const Navbar = () => {
     if (searchQuery.trim() || searchQuery === "") {
       dispatch(setFilters({ ...filters, search: searchQuery.trim() }));
 
+      // Only navigate to products if we're not already there
       if (location.pathname !== "/") {
         navigate("/");
       }
@@ -518,29 +517,38 @@ const Navbar = () => {
     dispatch(toggleMobileMenu());
   };
 
-  const goToHome = () => {
+  // FIXED: Simplified goToHome function - remove conflicting logic
+  const handleLogoClick = () => {
     setSearchQuery("");
     dispatch(setFilters({ ...filters, search: "" }));
-    if (location.pathname !== "/") {
-      navigate("/");
-    }
-    if (mobileMenuOpen) {
-      dispatch(toggleMobileMenu());
-    }
+    // Let the Link component handle navigation
   };
 
-  // Check if current page is home
+  // FIXED: Clean Auth button click handler
+  const handleAuthButtonClick = (e, path) => {
+    // Only close mobile menu if it's open
+    if (mobileMenuOpen) {
+      e.preventDefault(); // Prevent default navigation
+      dispatch(toggleMobileMenu()); // Close menu
+      // Use setTimeout to ensure menu closes before navigation
+      setTimeout(() => {
+        navigate(path);
+      }, 100);
+    }
+    // Otherwise, let the Link handle navigation
+  };
+
   const isHomePage = location.pathname === "/";
 
-  // Mobile menu items - Home added as first item
+  // FIXED: Mobile menu items with proper click handlers
   const mobileMenuItems = [
     <NavLink
       key="home-mobile"
       to="/"
       onClick={() => {
-        setSearchQuery("");
-        dispatch(setFilters({ ...filters, search: "" }));
-        dispatch(toggleMobileMenu());
+        if (mobileMenuOpen) {
+          dispatch(toggleMobileMenu());
+        }
       }}
       icon={Home}
       label="Home"
@@ -551,7 +559,11 @@ const Navbar = () => {
     <NavLink
       key="cart-mobile"
       to="/cart"
-      onClick={() => dispatch(toggleMobileMenu())}
+      onClick={() => {
+        if (mobileMenuOpen) {
+          dispatch(toggleMobileMenu());
+        }
+      }}
       icon={ShoppingCart}
       label={`Cart with ${itemCount} items`}
       badgeCount={itemCount}
@@ -566,7 +578,11 @@ const Navbar = () => {
       <NavLink
         key="profile-mobile"
         to="/profile"
-        onClick={() => dispatch(toggleMobileMenu())}
+        onClick={() => {
+          if (mobileMenuOpen) {
+            dispatch(toggleMobileMenu());
+          }
+        }}
         icon={User}
         label="Profile"
         isActive={location.pathname === "/profile"}
@@ -586,14 +602,14 @@ const Navbar = () => {
           />
         </div>
         <span>Logout</span>
-      </button>
+      </button>,
     );
   } else {
     mobileMenuItems.push(
       <NavLink
         key="login-mobile"
         to="/login"
-        onClick={() => dispatch(toggleMobileMenu())}
+        onClick={(e) => handleAuthButtonClick(e, "/login")}
         icon={LogIn}
         label="Login"
         isActive={location.pathname === "/login"}
@@ -603,13 +619,13 @@ const Navbar = () => {
       <NavLink
         key="register-mobile"
         to="/register"
-        onClick={() => dispatch(toggleMobileMenu())}
+        onClick={(e) => handleAuthButtonClick(e, "/register")}
         icon={UserPlus}
         label="Sign Up"
         isActive={location.pathname === "/register"}
       >
         Sign Up
-      </NavLink>
+      </NavLink>,
     );
   }
 
@@ -622,26 +638,18 @@ const Navbar = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo and Desktop Home Link */}
-            <div className="flex items-center space-x-6">
-              {/* Logo */}
-              <Link
-                to="/"
-                className="flex items-center space-x-2"
-                onClick={() => {
-                  setSearchQuery("");
-                  dispatch(setFilters({ ...filters, search: "" }));
-                }}
-                aria-label="ShopEasy Home"
-              >
-                <div className="text-primary-600">
-                  <ShoppingBag size={24} />
-                </div>
-                <span className="text-xl font-bold text-gray-900">
-                  ShopEasy
-                </span>
-              </Link>
-            </div>
+            {/* Logo - FIXED: Remove conflicting onClick */}
+            <Link
+              to="/"
+              className="flex items-center space-x-2"
+              onClick={handleLogoClick}
+              aria-label="ShopEasy Home"
+            >
+              <div className="text-primary-600">
+                <ShoppingBag size={24} />
+              </div>
+              <span className="text-xl font-bold text-gray-900">ShopEasy</span>
+            </Link>
 
             {/* Search Bar - Desktop */}
             <div className="hidden md:flex flex-1 max-w-xl mx-6">
@@ -659,9 +667,8 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* Desktop Actions */}
+            {/* Desktop Actions - FIXED: Remove conflicting onClick from AuthButtons */}
             <div className="hidden md:flex items-center space-x-3">
-              {/* Cart Icon Component */}
               <CartIcon
                 itemCount={itemCount}
                 isCartAnimating={isCartAnimating}
@@ -670,39 +677,57 @@ const Navbar = () => {
 
               {isAuthenticated ? (
                 <>
-                  <IconButton
-                    onClick={() => navigate("/profile")}
-                    icon={User}
-                    label="Profile"
-                    className={`group hover:bg-primary-50 hover:border-primary-200 ${
+                  <Link
+                    to="/profile"
+                    className={`p-2.5 rounded-lg transition-all duration-200 border group hover:bg-primary-50 hover:border-primary-200 ${
                       location.pathname === "/profile"
                         ? "border-primary-200 bg-primary-50"
-                        : ""
+                        : "border-transparent"
                     }`}
-                  />
+                    aria-label="Profile"
+                  >
+                    <User
+                      size={22}
+                      className={`transition-colors ${
+                        location.pathname === "/profile"
+                          ? "text-primary-600"
+                          : "text-gray-700 group-hover:text-primary-600"
+                      }`}
+                    />
+                  </Link>
                   <IconButton
                     onClick={handleLogoutClick}
                     icon={LogOut}
                     label="Logout"
-                    className="group hover:bg-red-50 hover:border-red-200"
+                    className="group hover:bg-red-50 hover:border-red-200 border-transparent"
                   />
                 </>
               ) : (
                 <div className="flex items-center space-x-3">
-                  <AuthButton
+                  <Link
                     to="/login"
-                    icon={LogIn}
-                    text="Login"
-                    isActive={location.pathname === "/login"}
-                    onClick={goToHome}
-                  />
-                  <AuthButton
+                    className={`flex items-center space-x-2 text-sm font-medium transition-colors duration-200 px-4 py-2.5 rounded-lg border ${
+                      location.pathname === "/login"
+                        ? "text-primary-600 font-semibold border-primary-600 bg-primary-50"
+                        : "text-gray-700 hover:text-primary-600 border-gray-300 hover:border-primary-600"
+                    }`}
+                    aria-label="Login"
+                  >
+                    <LogIn size={18} />
+                    <span>Login</span>
+                  </Link>
+                  <Link
                     to="/register"
-                    icon={UserPlus}
-                    text="Sign Up"
-                    isActive={location.pathname === "/register"}
-                    onClick={goToHome}
-                  />
+                    className={`flex items-center space-x-2 text-sm font-medium transition-colors duration-200 px-4 py-2.5 rounded-lg border ${
+                      location.pathname === "/register"
+                        ? "text-primary-600 font-semibold border-primary-600 bg-primary-50"
+                        : "text-gray-700 hover:text-primary-600 border-gray-300 hover:border-primary-600"
+                    }`}
+                    aria-label="Sign Up"
+                  >
+                    <UserPlus size={18} />
+                    <span>Sign Up</span>
+                  </Link>
                 </div>
               )}
             </div>

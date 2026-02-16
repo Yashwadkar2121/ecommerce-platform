@@ -1,4 +1,4 @@
-// utils/jwt.js - UPDATED VERSION
+// backend/utils/jwt.js
 const jwt = require("jsonwebtoken");
 
 const generateTokens = (userId, role) => {
@@ -6,13 +6,13 @@ const generateTokens = (userId, role) => {
   const accessToken = jwt.sign(
     { id: userId, role }, // Use 'id' instead of 'userId'
     process.env.JWT_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "15m" },
   );
 
   const refreshToken = jwt.sign(
     { id: userId, role }, // Use 'id' instead of 'userId'
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 
   return { accessToken, refreshToken };

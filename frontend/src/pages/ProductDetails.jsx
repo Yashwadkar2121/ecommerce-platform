@@ -121,7 +121,7 @@ const ProductDetails = () => {
             The product you're looking for doesn't exist or has been removed.
           </p>
           <button
-            onClick={() => navigate("/products")}
+            onClick={() => navigate("/")}
             className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-black px-6 py-3 rounded-lg hover:opacity-90 transition-all duration-200 font-medium"
           >
             <ArrowLeft size={20} />
@@ -133,6 +133,9 @@ const ProductDetails = () => {
   }
 
   const { product, reviews } = currentProduct;
+
+  // Format price for display (convert from paisa/cent to dollars)
+  const formattedPrice = (product.price / 100).toFixed(2);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-8">
@@ -157,7 +160,7 @@ const ProductDetails = () => {
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-gray-600 mb-8">
           <button
-            onClick={() => navigate("/products")}
+            onClick={() => navigate("/")}
             className="inline-flex items-center gap-1 hover:text-primary-600 transition-colors"
           >
             <ArrowLeft size={16} />
@@ -307,9 +310,9 @@ const ProductDetails = () => {
                 </span>
               </div>
 
-              {/* Price */}
+              {/* Price - Fixed to show correctly */}
               <div className="text-5xl font-bold text-primary-600 mb-8">
-                ${product.price.toFixed(2)}
+                ${formattedPrice}
                 <span className="text-sm text-gray-500 font-normal ml-2">
                   {product.inventory > 0
                     ? `${product.inventory} in stock`

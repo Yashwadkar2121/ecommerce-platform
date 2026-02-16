@@ -1,4 +1,4 @@
-// controllers/authController.js
+// backend/controllers/authController.js
 const AuthService = require("../services/authService");
 
 // Register User
@@ -7,7 +7,7 @@ const register = async (req, res, next) => {
     const result = await AuthService.registerUser(
       req.body,
       req.get("User-Agent"),
-      req.ip
+      req.ip,
     );
 
     res.status(201).json({
@@ -27,7 +27,7 @@ const login = async (req, res, next) => {
       email,
       password,
       req.get("User-Agent"),
-      req.ip
+      req.ip,
     );
 
     res.json({

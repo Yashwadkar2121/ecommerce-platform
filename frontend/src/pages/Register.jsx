@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+// frontend/src/components/pages/Register.jsx
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -48,19 +49,21 @@ const CONFIG = {
   },
   VALIDATION: {
     PATTERNS: {
-      EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/i,
       PHONE: /^[0-9]{10}$/,
       NAME: /^[A-Za-zÀ-ÿ\s\-']+$/,
       PASSWORD:
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
     },
     MESSAGES: {
-      REQUIRED: (field) => `${field} is required`,
+      REQUIRED: () => `required`,
       MIN_LENGTH: (min) => `Minimum ${min} characters required`,
       MAX_LENGTH: (max) => `Maximum ${max} characters allowed`,
       PATTERN: (field, msg) => msg || `Invalid ${field.toLowerCase()} format`,
       PASSWORD:
         "Must contain uppercase, lowercase, number, and special character (@$!%*?&)",
+      PHONE_OPTIONAL:
+        "Phone number is optional - must be exactly 10 digits if provided",
     },
   },
   DEBOUNCE: {
@@ -122,20 +125,29 @@ const Register = () => {
   const [touched, setTouched] = useState(INITIAL_STATE.TOUCHED);
   const [showTerms, setShowTerms] = useState(false);
   const [loading, setLoading] = useState({ phone: false, email: false });
-  const [availability, setAvailability] = useState({
-    phone: null,
-    email: null,
-  });
   const [statusMessage, setStatusMessage] = useState({ phone: "", email: "" });
   const [emailSuggestions, setEmailSuggestions] = useState([]);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Refs for frequently changing data
+  const formDataRef = useRef(formData);
+  const touchedRef = useRef(touched);
+
+  // Update refs when state changes
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
+  useEffect(() => {
+    touchedRef.current = touched;
+  }, [touched]);
+
   // Redux and routing
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isLoading, error, isAuthenticated } = useAppSelector(
-    (state) => state.auth
+    (state) => state.auth,
   );
 
   // Redirect if authenticated
@@ -151,7 +163,7 @@ const Register = () => {
   // Format phone input
   const formatPhone = useCallback(
     (value) => value.replace(/\D/g, "").slice(0, 10),
-    []
+    [],
   );
 
   // Email validation with typo detection
@@ -202,7 +214,7 @@ const Register = () => {
     // Domain typo corrections
     if (CONFIG.EMAIL.DOMAIN_TYPO_MAP[sanitizedDomain]) {
       suggestions.add(
-        `${sanitizedLocalPart}@${CONFIG.EMAIL.DOMAIN_TYPO_MAP[sanitizedDomain]}.com`
+        `${sanitizedLocalPart}@${CONFIG.EMAIL.DOMAIN_TYPO_MAP[sanitizedDomain]}.com`,
       );
     }
 
@@ -215,18 +227,20 @@ const Register = () => {
     setEmailSuggestions(Array.from(suggestions).slice(0, 3));
   }, []);
 
-  // Check availability (generic for both email and phone)
+  // Check availability (generic for both email and phone) - KEEP for UX
   const checkAvailability = useCallback(async (type, value) => {
     const isEmail = type === "email";
     const pattern = isEmail
       ? CONFIG.VALIDATION.PATTERNS.EMAIL
       : CONFIG.VALIDATION.PATTERNS.PHONE;
 
+    // Don't check availability if phone is empty (optional)
     if (!value || !pattern.test(value)) {
-      setAvailability((prev) => ({ ...prev, [type]: null }));
       setStatusMessage((prev) => ({
         ...prev,
-        [type]: isEmail ? "Enter a valid email" : `${value.length}/10 digits`,
+        [type]: isEmail
+          ? "Enter a valid email"
+          : "Optional - 10 digits if provided",
       }));
       return;
     }
@@ -244,31 +258,31 @@ const Register = () => {
         ? "Email already registered"
         : "Phone already in use";
 
-      setAvailability((prev) => ({ ...prev, [type]: available }));
       setStatusMessage((prev) => ({
         ...prev,
         [type]: available ? "Available" : apiError || defaultMsg,
       }));
 
-      if (available) {
-        setFormErrors((prev) => ({ ...prev, [type]: "" }));
-      } else {
+      // Only set error if not available
+      if (!available) {
         setFormErrors((prev) => ({ ...prev, [type]: apiError || defaultMsg }));
+      } else {
+        // Clear error if available
+        setFormErrors((prev) => ({ ...prev, [type]: "" }));
       }
     } catch {
-      setAvailability((prev) => ({ ...prev, [type]: null }));
       setStatusMessage((prev) => ({ ...prev, [type]: "Check failed" }));
     } finally {
       setLoading((prev) => ({ ...prev, [type]: false }));
     }
   }, []);
 
-  // Field validation
+  // Field validation - WITH password complexity
   const validateField = useCallback(
-    (name, value, confirmValue = null) => {
+    (name, value) => {
       const field = name.toLowerCase();
 
-      // Required check
+      // Required check (except phone - phone is OPTIONAL)
       if (!value?.trim() && field !== "phone") {
         return CONFIG.VALIDATION.MESSAGES.REQUIRED(name);
       }
@@ -285,17 +299,19 @@ const Register = () => {
           return "";
 
         case "confirmpassword":
-          return value !== (confirmValue || formData.password)
+          return value !== formDataRef.current.password
             ? "Passwords do not match"
             : "";
 
         case "phone":
-          return !CONFIG.VALIDATION.PATTERNS.PHONE.test(value)
-            ? "Must be exactly 10 digits"
-            : "";
+          // Phone is optional, but if provided, must be exactly 10 digits
+          if (value && !CONFIG.VALIDATION.PATTERNS.PHONE.test(value)) {
+            return CONFIG.VALIDATION.MESSAGES.PHONE_OPTIONAL;
+          }
+          return "";
 
         default: // firstName, lastName
-          if (value.length < 2) return CONFIG.VALIDATION.MESSAGES.MIN_LENGTH(2);
+          if (value.length < 3) return CONFIG.VALIDATION.MESSAGES.MIN_LENGTH(3);
           if (value.length > 50)
             return CONFIG.VALIDATION.MESSAGES.MAX_LENGTH(50);
           if (!CONFIG.VALIDATION.PATTERNS.NAME.test(value)) {
@@ -304,7 +320,7 @@ const Register = () => {
           return "";
       }
     },
-    [validateEmail, formData.password]
+    [validateEmail], // Only stable dependencies
   );
 
   // Debounced availability checks
@@ -315,7 +331,6 @@ const Register = () => {
         checkAvailability("email", formData.email);
       } else {
         setEmailSuggestions([]);
-        setAvailability((prev) => ({ ...prev, email: null }));
         setStatusMessage((prev) => ({
           ...prev,
           email: formData.email ? "Enter a valid email" : "",
@@ -328,13 +343,21 @@ const Register = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (CONFIG.VALIDATION.PATTERNS.PHONE.test(formData.phone)) {
-        checkAvailability("phone", formData.phone);
+      if (formData.phone) {
+        // Only check if phone has value (optional field)
+        if (CONFIG.VALIDATION.PATTERNS.PHONE.test(formData.phone)) {
+          checkAvailability("phone", formData.phone);
+        } else {
+          setStatusMessage((prev) => ({
+            ...prev,
+            phone: "Must be exactly 10 digits if provided",
+          }));
+        }
       } else {
-        setAvailability((prev) => ({ ...prev, phone: null }));
+        // Phone is empty - show optional message
         setStatusMessage((prev) => ({
           ...prev,
-          phone: formData.phone ? `${formData.phone.length}/10 digits` : "",
+          phone: "Optional - 10 digits if provided",
         }));
       }
     }, CONFIG.DEBOUNCE.PHONE);
@@ -342,7 +365,7 @@ const Register = () => {
     return () => clearTimeout(timer);
   }, [formData.phone, checkAvailability]);
 
-  // Field handlers
+  // Field handlers with batched updates
   const handleChange = useCallback(
     (e) => {
       const { name, value } = e.target;
@@ -353,35 +376,38 @@ const Register = () => {
         setEmailSuggestions([]);
       }
 
-      setFormData((prev) => ({ ...prev, [name]: formattedValue }));
-
       // Clear server error on typing
       if (error) dispatch(clearError());
 
-      // Real-time validation
-      if (touched[name]) {
-        const errorMsg = validateField(name, formattedValue);
-        setFormErrors((prev) => ({
-          ...prev,
-          [name]: errorMsg,
-          ...(name === "password" && {
-            confirmPassword: validateField(
+      // Update form data
+      setFormData((prev) => {
+        const newFormData = { ...prev, [name]: formattedValue };
+
+        // Calculate errors if field is touched
+        if (touchedRef.current[name]) {
+          const newErrors = { ...formErrors };
+          newErrors[name] = validateField(name, formattedValue);
+
+          // Update confirm password error if password changes
+          if (name === "password") {
+            newErrors.confirmPassword = validateField(
               "confirmPassword",
-              formData.confirmPassword,
-              formattedValue
-            ),
-          }),
-          ...(name === "confirmPassword" && {
-            confirmPassword: validateField(
+              newFormData.confirmPassword,
+            );
+          } else if (name === "confirmPassword") {
+            newErrors.confirmPassword = validateField(
               "confirmPassword",
               formattedValue,
-              formData.password
-            ),
-          }),
-        }));
-      }
+            );
+          }
+
+          setFormErrors(newErrors);
+        }
+
+        return newFormData;
+      });
     },
-    [error, touched, formData, dispatch, formatPhone, validateField]
+    [error, dispatch, formatPhone, validateField, formErrors],
   );
 
   const handleBlur = useCallback(
@@ -391,7 +417,7 @@ const Register = () => {
       const errorMsg = validateField(name, formData[name]);
       setFormErrors((prev) => ({ ...prev, [name]: errorMsg }));
     },
-    [formData, validateField]
+    [formData, validateField],
   );
 
   const handleSuggestionClick = useCallback(
@@ -405,7 +431,7 @@ const Register = () => {
       setFormErrors((prev) => ({ ...prev, email: error }));
       if (!error) checkAvailability("email", sanitized);
     },
-    [validateField, checkAvailability]
+    [validateField, checkAvailability],
   );
 
   const handleTermsChange = useCallback((e) => {
@@ -418,16 +444,15 @@ const Register = () => {
     }));
   }, []);
 
-  // Form validation and submission
+  // SINGLE validation function - removed duplication
   const validateForm = useCallback(() => {
     const errors = {};
     let isValid = true;
 
     // Validate all fields
     Object.keys(formData).forEach((field) => {
-      const error = validateField(field, formData[field]);
-      errors[field] = error;
-      if (error) isValid = false;
+      errors[field] = validateField(field, formData[field]);
+      if (errors[field]) isValid = false;
     });
 
     // Validate terms
@@ -436,63 +461,14 @@ const Register = () => {
       isValid = false;
     }
 
-    // Check availability
-    if (availability.phone === false) {
-      errors.phone = "Phone number already registered";
-      isValid = false;
-    }
-    if (availability.email === false) {
-      errors.email = "Email already registered";
-      isValid = false;
-    }
-
-    // Password confirmation validation (redundant check)
+    // Check passwords match (client-side only)
     if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = "Passwords do not match";
       isValid = false;
     }
 
-    // Password strength validation
-    if (!CONFIG.VALIDATION.PATTERNS.PASSWORD.test(formData.password)) {
-      errors.password = CONFIG.VALIDATION.MESSAGES.PASSWORD;
-      isValid = false;
-    }
-
-    setFormErrors(errors);
-    return isValid;
-  }, [formData, termsAccepted, availability, validateField]);
-
-  // Final validation checklist before submission
-  const performFinalValidation = useCallback(() => {
-    const issues = [];
-
-    // Check all required fields
-    if (!formData.firstName.trim()) issues.push("First name");
-    if (!formData.lastName.trim()) issues.push("Last name");
-    if (!formData.email.trim()) issues.push("Email");
-    if (!formData.phone.trim()) issues.push("Phone");
-    if (!formData.password) issues.push("Password");
-
-    // Check password strength
-    if (!CONFIG.VALIDATION.PATTERNS.PASSWORD.test(formData.password)) {
-      issues.push("Password strength requirements");
-    }
-
-    // Check passwords match
-    if (formData.password !== formData.confirmPassword) {
-      issues.push("Password confirmation");
-    }
-
-    // Check terms
-    if (!termsAccepted) issues.push("Terms and conditions");
-
-    // Check availability
-    if (availability.phone === false || availability.email === false) {
-      issues.push("Account availability");
-    }
-
-    return issues;
-  }, [formData, termsAccepted, availability]);
+    return { isValid, errors };
+  }, [formData, termsAccepted, validateField]);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -504,15 +480,18 @@ const Register = () => {
       // Mark all fields as touched
       const allTouched = Object.keys(touched).reduce(
         (acc, field) => ({ ...acc, [field]: true }),
-        {}
+        {},
       );
       setTouched(allTouched);
 
-      // Validate form - stop if invalid
-      if (!validateForm()) {
+      // SINGLE validation call
+      const { isValid, errors } = validateForm();
+      setFormErrors(errors);
+
+      if (!isValid) {
         // Find and focus first error
-        const errorFields = Object.keys(formErrors).filter(
-          (field) => formErrors[field]
+        const errorFields = Object.keys(errors).filter(
+          (field) => errors[field],
         );
         if (errorFields.length > 0) {
           document.getElementById(errorFields[0])?.focus();
@@ -521,64 +500,31 @@ const Register = () => {
         return;
       }
 
-      // Double-check availability before submission
-      if (availability.phone === false || availability.email === false) {
-        setFormErrors((prev) => ({
-          ...prev,
-          phone: availability.phone === false ? "Phone already registered" : "",
-          email: availability.email === false ? "Email already registered" : "",
-        }));
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Run final validation checklist
-      const validationIssues = performFinalValidation();
-      if (validationIssues.length > 0) {
-        setFormErrors((prev) => ({
-          ...prev,
-          _form: `Please fix the following: ${validationIssues.join(", ")}`,
-        }));
-        setIsSubmitting(false);
-        return;
-      }
-
       try {
-        // Prepare registration data with trimming
+        // Prepare registration data - send phone only if provided
         const registrationData = {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
           email: formData.email.trim().toLowerCase(),
-          phone: formData.phone,
+          phone: formData.phone || null, // Send null if empty
           password: formData.password,
         };
 
         await dispatch(registerUser(registrationData)).unwrap();
-
-        // Success - form will be reset by redirect
+        // Success - redirect happens via useEffect
       } catch (error) {
-        // Error handling is already in Redux state
         console.error("Registration failed:", error);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [
-      touched,
-      validateForm,
-      formErrors,
-      availability,
-      formData,
-      dispatch,
-      performFinalValidation,
-      isSubmitting,
-    ]
+    [touched, validateForm, formData, dispatch, isSubmitting],
   );
 
   // Helper functions
   const hasError = useCallback(
     (field) => touched[field] && formErrors[field],
-    [touched, formErrors]
+    [touched, formErrors],
   );
 
   const getInputClasses = useCallback(
@@ -592,25 +538,29 @@ const Register = () => {
         return `${base} border-green-300 focus:border-primary-500 focus:ring-primary-200`;
       return `${base} border-gray-300 focus:border-primary-500 focus:ring-primary-200`;
     },
-    [hasError, touched, formErrors]
+    [hasError, touched, formErrors],
   );
 
-  // Password validation status
-  const passwordValidation = useMemo(
-    () => ({
-      minLength: formData.password.length >= 6,
-      hasLowercase: /[a-z]/.test(formData.password),
-      hasUppercase: /[A-Z]/.test(formData.password),
-      hasNumber: /\d/.test(formData.password),
-      hasSpecial: /[@$!%*?&]/.test(formData.password),
-      passwordsMatch:
-        formData.password === formData.confirmPassword &&
-        formData.confirmPassword.length > 0,
-    }),
-    [formData.password, formData.confirmPassword]
-  );
+  // Password validation status - WITH complexity checks
+  const passwordValidation = useMemo(() => {
+    const password = formData.password;
+    const confirm = formData.confirmPassword;
 
-  // Form fields configuration
+    // Use the regex pattern from CONFIG
+    const isValidFormat = CONFIG.VALIDATION.PATTERNS.PASSWORD.test(password);
+
+    return {
+      isValidFormat,
+      minLength: password.length >= 6,
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[@$!%*?&]/.test(password),
+      passwordsMatch: password === confirm && confirm.length > 0,
+    };
+  }, [formData.password, formData.confirmPassword]);
+
+  // Form fields configuration - Updated phone to show optional
   const formFields = useMemo(
     () => [
       {
@@ -641,9 +591,10 @@ const Register = () => {
         id: "phone",
         label: "Phone Number",
         type: "tel",
-        placeholder: "1234567890",
+        placeholder: "1234567890 (optional)",
         icon: Phone,
         gridCols: "col-span-2",
+        optional: true, // Added flag for optional field
       },
       {
         id: "password",
@@ -662,13 +613,12 @@ const Register = () => {
         gridCols: "col-span-2",
       },
     ],
-    [showPassword]
+    [showPassword],
   );
 
   // Status icons
   const StatusIcon = ({ type }) => {
     const isChecking = loading[type];
-    const isAvailable = availability[type];
 
     if (isChecking)
       return (
@@ -677,11 +627,14 @@ const Register = () => {
         </div>
       );
 
-    if (isAvailable === true)
+    if (statusMessage[type] === "Available")
       return (
         <CheckCircle className="absolute right-10 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
       );
-    if (isAvailable === false)
+    if (
+      statusMessage[type]?.includes("already") ||
+      statusMessage[type]?.includes("registered")
+    )
       return (
         <XCircle className="absolute right-10 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
       );
@@ -733,13 +686,26 @@ const Register = () => {
 
             <div className="grid grid-cols-2 gap-4">
               {formFields.map(
-                ({ id, label, type, placeholder, icon: Icon, gridCols }) => (
+                ({
+                  id,
+                  label,
+                  type,
+                  placeholder,
+                  icon: Icon,
+                  gridCols,
+                  optional,
+                }) => (
                   <div key={id} className={gridCols}>
                     <label
                       htmlFor={id}
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
                       {label}
+                      {optional && (
+                        <span className="ml-1 text-xs font-normal text-gray-500">
+                          (optional)
+                        </span>
+                      )}
                     </label>
                     <div className="relative">
                       <input
@@ -759,7 +725,7 @@ const Register = () => {
                         size={18}
                       />
 
-                      {/* Status indicators */}
+                      {/* Status indicators - only for email and phone */}
                       {(id === "email" || id === "phone") && (
                         <StatusIcon type={id} />
                       )}
@@ -837,11 +803,11 @@ const Register = () => {
                       </div>
                     )}
                   </div>
-                )
+                ),
               )}
             </div>
 
-            {/* Password validation */}
+            {/* Password validation - WITH complexity checks */}
             {(touched.password || formData.password) && (
               <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-xs">
                 <p className="font-medium text-gray-700 mb-1">
@@ -850,7 +816,7 @@ const Register = () => {
                 <div className="grid grid-cols-2 gap-1">
                   {Object.entries(passwordValidation)
                     .filter(
-                      ([key]) => !["minLength", "passwordsMatch"].includes(key)
+                      ([key]) => !["minLength", "passwordsMatch"].includes(key),
                     )
                     .map(([key, isValid]) => (
                       <p

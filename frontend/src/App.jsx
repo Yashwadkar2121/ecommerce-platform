@@ -1,4 +1,4 @@
-// App.Jsx
+// frontend/src/App.jsx
 import AppRouter from "./router/AppRouter";
 import CartNotification from "./components/CartNotification";
 

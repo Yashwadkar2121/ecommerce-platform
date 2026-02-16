@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Filter, X, ChevronDown, Tag, Star, DollarSign } from "lucide-react";
 import { useAppDispatch } from "../../store/hooks";
@@ -17,9 +17,13 @@ const CompactFilterDropdown = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredOptions = options.filter(
-    (option) =>
-      option && option.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOptions = useMemo(
+    () =>
+      options.filter(
+        (option) =>
+          option && option.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [options, searchTerm]
   );
 
   return (
@@ -77,6 +81,7 @@ const CompactFilterDropdown = ({
                 onClick={() => {
                   onSelect("");
                   setIsOpen(false);
+                  setSearchTerm("");
                 }}
                 className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center justify-between transition-colors ${
                   !selectedValue
@@ -96,6 +101,7 @@ const CompactFilterDropdown = ({
                     onClick={() => {
                       onSelect(option);
                       setIsOpen(false);
+                      setSearchTerm("");
                     }}
                     className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center justify-between transition-colors ${
                       selectedValue === option
@@ -126,18 +132,27 @@ const CompactFilterDropdown = ({
 const PriceRangeFilter = ({ priceRange, setPriceRange, onApply }) => {
   const [localRange, setLocalRange] = useState(priceRange);
 
-  const handleApply = () => {
+  const handleApply = useCallback(() => {
     setPriceRange(localRange);
     onApply(localRange);
-  };
+  }, [localRange, onApply, setPriceRange]);
 
-  const handleInputChange = (e, field) => {
+  const handleInputChange = useCallback((e, field) => {
     const value = e.target.value;
     // Allow empty string, numbers, and decimal values
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
-      setLocalRange({ ...localRange, [field]: value });
+      setLocalRange((prev) => ({ ...prev, [field]: value }));
     }
-  };
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter") {
+        handleApply();
+      }
+    },
+    [handleApply]
+  );
 
   // Update local state when props change
   useEffect(() => {
@@ -157,7 +172,7 @@ const PriceRangeFilter = ({ priceRange, setPriceRange, onApply }) => {
             placeholder="Min"
             value={localRange.min}
             onChange={(e) => handleInputChange(e, "min")}
-            onKeyDown={(e) => e.key === "Enter" && handleApply()}
+            onKeyDown={handleKeyDown}
             className="w-full pl-8 pr-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
           />
         </div>
@@ -172,7 +187,7 @@ const PriceRangeFilter = ({ priceRange, setPriceRange, onApply }) => {
             placeholder="Max"
             value={localRange.max}
             onChange={(e) => handleInputChange(e, "max")}
-            onKeyDown={(e) => e.key === "Enter" && handleApply()}
+            onKeyDown={handleKeyDown}
             className="w-full pl-8 pr-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
           />
         </div>
@@ -196,6 +211,20 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
     max: filters.maxPrice || "",
   });
 
+  // Dynamically extract categories from products if not provided
+  const dynamicCategories = useMemo(() => {
+    // Use provided categories if available, otherwise extract from products
+    if (categories && categories.length > 0) {
+      return [...categories].sort();
+    }
+
+    // Extract unique categories from products
+    const uniqueCategories = [
+      ...new Set(products.map((p) => p.category).filter(Boolean)),
+    ];
+    return uniqueCategories.sort();
+  }, [categories, products]);
+
   const allBrands = useMemo(() => {
     return [...new Set(products.map((p) => p.brand).filter(Boolean))].sort();
   }, [products]);
@@ -218,39 +247,56 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
       : allBrands;
   }, [filters.category, categoryBrands, allBrands]);
 
-  const handleCategoryChange = (value) => {
-    dispatch(
-      setFilters({
-        ...filters,
-        category: value,
-        brand: "",
-      })
-    );
-  };
+  const handleCategoryChange = useCallback(
+    (value) => {
+      dispatch(
+        setFilters({
+          ...filters,
+          category: value,
+          brand: "",
+        })
+      );
+    },
+    [dispatch, filters]
+  );
 
-  const handleBrandChange = (value) => {
-    dispatch(setFilters({ ...filters, brand: value }));
-  };
+  const handleBrandChange = useCallback(
+    (value) => {
+      dispatch(setFilters({ ...filters, brand: value }));
+    },
+    [dispatch, filters]
+  );
 
-  const handlePriceApply = (range) => {
-    dispatch(
-      setFilters({
-        ...filters,
-        minPrice: range.min,
-        maxPrice: range.max,
-      })
-    );
-  };
+  const handlePriceApply = useCallback(
+    (range) => {
+      dispatch(
+        setFilters({
+          ...filters,
+          minPrice: range.min,
+          maxPrice: range.max,
+        })
+      );
+    },
+    [dispatch, filters]
+  );
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     dispatch(clearFilters());
     setLocalPriceRange({ min: "", max: "" });
-  };
+  }, [dispatch]);
 
   const hasActiveFilters = useMemo(() => {
     return (
       filters.category || filters.brand || filters.minPrice || filters.maxPrice
     );
+  }, [filters.category, filters.brand, filters.minPrice, filters.maxPrice]);
+
+  const activeFilterCount = useMemo(() => {
+    return [
+      filters.category,
+      filters.brand,
+      filters.minPrice || filters.maxPrice,
+    ].filter(Boolean).length;
   }, [filters.category, filters.brand, filters.minPrice, filters.maxPrice]);
 
   return (
@@ -259,6 +305,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
       <button
         onClick={() => setIsOpen(true)}
         className="lg:hidden fixed bottom-6 right-6 z-40 bg-primary-600 text-black p-4 rounded-full shadow-lg hover:bg-primary-700 transition-all duration-200 active:scale-95 group"
+        aria-label="Open filters"
       >
         <Filter
           size={22}
@@ -267,13 +314,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
         {hasActiveFilters && (
           <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
             <span className="text-xs font-bold text-black">
-              {
-                [
-                  filters.category,
-                  filters.brand,
-                  filters.minPrice || filters.maxPrice,
-                ].filter(Boolean).length
-              }
+              {activeFilterCount}
             </span>
           </div>
         )}
@@ -289,6 +330,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
               onClick={() => setIsOpen(false)}
+              aria-hidden="true"
             />
             <motion.div
               initial={{ x: "-100%" }}
@@ -296,6 +338,9 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="fixed left-0 top-0 h-full w-full max-w-sm bg-white z-50 lg:hidden overflow-y-auto shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filter options"
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6 pb-4 border-b">
@@ -303,14 +348,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
                     <h2 className="text-xl font-bold text-gray-900">Filters</h2>
                     {hasActiveFilters && (
                       <p className="text-sm text-primary-600 font-medium mt-1">
-                        {
-                          [
-                            filters.category,
-                            filters.brand,
-                            filters.minPrice || filters.maxPrice,
-                          ].filter(Boolean).length
-                        }{" "}
-                        active
+                        {activeFilterCount} active
                       </p>
                     )}
                   </div>
@@ -326,6 +364,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
                     <button
                       onClick={() => setIsOpen(false)}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Close filters"
                     >
                       <X size={20} />
                     </button>
@@ -338,7 +377,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
                     <CompactFilterDropdown
                       label="Category"
                       icon={Tag}
-                      options={categories}
+                      options={dynamicCategories}
                       selectedValue={filters.category}
                       onSelect={handleCategoryChange}
                       placeholder="All Categories"
@@ -354,7 +393,9 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
                       selectedValue={filters.brand}
                       onSelect={handleBrandChange}
                       placeholder="All Brands"
-                      disabled={!filters.category && categories.length > 0}
+                      disabled={
+                        !filters.category && dynamicCategories.length > 0
+                      }
                     />
                     {filters.category && (
                       <p className="mt-2 text-xs text-gray-400">
@@ -403,14 +444,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
               <h2 className="text-lg font-bold text-gray-900">Filters</h2>
               {hasActiveFilters && (
                 <p className="text-xs text-primary-600 font-medium mt-1">
-                  {
-                    [
-                      filters.category,
-                      filters.brand,
-                      filters.minPrice || filters.maxPrice,
-                    ].filter(Boolean).length
-                  }{" "}
-                  active
+                  {activeFilterCount} active
                 </p>
               )}
             </div>
@@ -430,7 +464,7 @@ const FilterSection = ({ filters, categories, products, onFilterChange }) => {
               <CompactFilterDropdown
                 label="Category"
                 icon={Tag}
-                options={categories}
+                options={dynamicCategories}
                 selectedValue={filters.category}
                 onSelect={handleCategoryChange}
                 placeholder="All Categories"

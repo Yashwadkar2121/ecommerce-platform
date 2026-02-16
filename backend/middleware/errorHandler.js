@@ -1,3 +1,4 @@
+// backend/middleware/errorHandler.js
 const { ValidationError } = require("sequelize");
 const { MongoError } = require("mongodb");
 

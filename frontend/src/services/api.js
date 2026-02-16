@@ -1,3 +1,4 @@
+// frontend/src/services/api.js
 import axios from "axios";
 
 const API_BASE_URL = "http://localhost:5000/api";
@@ -20,7 +21,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor to handle token refresh
@@ -51,7 +52,7 @@ api.interceptors.response.use(
           `${API_BASE_URL}/auth/refresh-token`,
           {
             refreshToken,
-          }
+          },
         );
 
         const { tokens } = response.data;
@@ -70,7 +71,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

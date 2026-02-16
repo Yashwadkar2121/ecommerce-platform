@@ -28,8 +28,11 @@ const ProductCard = ({ product, index }) => {
     }
   };
 
+  // Fix: Changed from /products/:productId to /product/:id
   return (
-    <Link to={`/products/${product._id}`} className="block">
+    <Link to={`/product/${product._id}`} className="block">
+      {" "}
+      {/* Fixed link */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -66,6 +69,7 @@ const ProductCard = ({ product, index }) => {
               {product.name}
             </h3>
             <p className="text-xs text-gray-500 mt-1">{product.brand}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{product.category}</p>
           </div>
 
           <div className="flex items-center mb-3">
@@ -90,7 +94,8 @@ const ProductCard = ({ product, index }) => {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xl font-bold text-primary-600">
-                ${product.price.toFixed(2)}
+                ${(product.price / 100).toFixed(2)}{" "}
+                {/* Adjust for paisa/cent */}
               </span>
             </div>
             <button

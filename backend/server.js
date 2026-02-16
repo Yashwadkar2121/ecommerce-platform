@@ -1,3 +1,4 @@
+// backend/server.js
 const dotenv = require("dotenv");
 dotenv.config({ quiet: true });
 
@@ -19,7 +20,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 const startServer = async () => {
@@ -36,12 +37,12 @@ const startServer = async () => {
     console.log("✅ Redis connected successfully");
 
     // 5️⃣ Import routes
-    const authRoutes = require("./routes/auth");
+    const authRoutes = require("./routes/authRoutes");
     const orderRoutes = require("./routes/orders");
     const paymentRoutes = require("./routes/payments");
-    const productRoutes = require("./routes/products");
+    const productRoutes = require("./routes/productsRoutes");
     const cartRoutes = require("./routes/cart");
-    const adminRoutes = require("./routes/admin");
+    const adminRoutes = require("./routes/adminRoutes");
 
     app.use("/api/auth", authRoutes);
     app.use("/api/orders", orderRoutes);

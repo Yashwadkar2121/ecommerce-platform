@@ -1,3 +1,4 @@
+// routes/admin.js
 const express = require("express");
 const {
   // Product Management
@@ -18,7 +19,9 @@ const {
   getDashboardStats,
 } = require("../controllers/adminController");
 const { authenticate, authorize } = require("../middleware/auth");
-const { validateProduct } = require("../middleware/validation");
+const {
+  validateProductCreate, // ← CHANGED FROM validateProduct
+} = require("../middleware/validations/productValidation");
 
 const router = express.Router();
 
@@ -31,7 +34,7 @@ router.get("/dashboard", getDashboardStats);
 
 // Product Management
 router.get("/products", adminGetProducts);
-router.post("/products", validateProduct, adminCreateProduct);
+router.post("/products", validateProductCreate, adminCreateProduct);
 router.put("/products/:productId", adminUpdateProduct);
 router.delete("/products/:productId", adminDeleteProduct);
 

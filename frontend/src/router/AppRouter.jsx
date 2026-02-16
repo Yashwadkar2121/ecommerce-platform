@@ -1,4 +1,4 @@
-// FINAL AppRouter.jsx - Production Ready
+// frontend/src/router/AppRouter.jsx
 import { Routes, Route } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";

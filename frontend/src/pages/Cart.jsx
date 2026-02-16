@@ -42,7 +42,7 @@ const Cart = () => {
               shopping to find amazing products!
             </p>
             <Link
-              to="/products"
+              to="/"
               className="inline-flex items-center px-6 py-3 bg-primary-600 text-black font-semibold rounded-lg hover:bg-primary-700 transition-colors"
             >
               Start Shopping
@@ -193,7 +193,7 @@ const Cart = () => {
               </Link>
 
               <Link
-                to="/products"
+                to="/"
                 className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg hover:border-primary-600 hover:text-primary-600 transition-colors font-semibold text-center block mt-3"
               >
                 Continue Shopping
