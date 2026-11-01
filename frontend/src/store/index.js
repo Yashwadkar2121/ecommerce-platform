@@ -4,6 +4,7 @@ import authReducer from "./slices/authSlice";
 import cartReducer from "./slices/cartSlice";
 import productReducer from "./slices/productSlice";
 import uiReducer from "./slices/uiSlice";
+import { cartSyncMiddleware } from "./cartSync";
 
 export const store = configureStore({
   reducer: {
@@ -17,7 +18,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: ["persist/PERSIST"],
       },
-    }),
+    }).prepend(cartSyncMiddleware.middleware),
 });
 
 export default store;

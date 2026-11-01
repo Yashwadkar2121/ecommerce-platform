@@ -13,7 +13,8 @@ import Orders from "../pages/Orders";
 import ForgotPassword from "../components/Forget-Password/ForgotPassword";
 import VerifyOTP from "../components/Forget-Password/VerifyOTP";
 import ResetPassword from "../components/Forget-Password/ResetPassword";
-import NotFound from "../pages/NotFound.Jsx";
+import NotFound from "../pages/NotFound";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 const AppRouter = () => {
   return (
@@ -29,15 +30,36 @@ const AppRouter = () => {
 
           {/* Cart & Checkout */}
           <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
           {/* User Account */}
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/orders" element={<Orders />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <Orders />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Password Recovery */}
           <Route path="/forgot-password" element={<ForgotPassword />} />

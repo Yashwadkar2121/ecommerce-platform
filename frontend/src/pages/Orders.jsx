@@ -1,64 +1,79 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Package, Truck, CheckCircle, Clock, XCircle } from "lucide-react";
+import {
+  Package,
+  Truck,
+  CheckCircle,
+  Clock,
+  XCircle,
+  CreditCard,
+  Loader2,
+} from "lucide-react";
+import { orderService } from "../services/orderService";
+
+const STATUS = {
+  pending: {
+    label: "Awaiting payment",
+    icon: <CreditCard className="h-5 w-5 text-gray-500" />,
+    color: "bg-gray-100 text-gray-800",
+  },
+  processing: {
+    label: "Processing",
+    icon: <Clock className="h-5 w-5 text-yellow-500" />,
+    color: "bg-yellow-100 text-yellow-800",
+  },
+  shipped: {
+    label: "Shipped",
+    icon: <Truck className="h-5 w-5 text-blue-500" />,
+    color: "bg-blue-100 text-blue-800",
+  },
+  delivered: {
+    label: "Delivered",
+    icon: <CheckCircle className="h-5 w-5 text-green-500" />,
+    color: "bg-green-100 text-green-800",
+  },
+  cancelled: {
+    label: "Cancelled",
+    icon: <XCircle className="h-5 w-5 text-red-500" />,
+    color: "bg-red-100 text-red-800",
+  },
+};
 
 const Orders = () => {
-  // Mock orders data - replace with actual data from your backend
-  const orders = [
-    {
-      id: "ORD-001",
-      date: "2024-01-15",
-      status: "delivered",
-      total: 299.99,
-      items: [
-        { name: "Wireless Headphones", quantity: 1, price: 199.99 },
-        { name: "Phone Case", quantity: 1, price: 29.99 },
-      ],
-      trackingNumber: "TRK123456789",
-    },
-    {
-      id: "ORD-002",
-      date: "2024-01-10",
-      status: "shipped",
-      total: 159.5,
-      items: [{ name: "Smart Watch", quantity: 1, price: 159.5 }],
-      trackingNumber: "TRK987654321",
-    },
-    {
-      id: "ORD-003",
-      date: "2024-01-05",
-      status: "processing",
-      total: 75.25,
-      items: [
-        { name: "USB-C Cable", quantity: 2, price: 25.25 },
-        { name: "Power Bank", quantity: 1, price: 49.99 },
-      ],
-      trackingNumber: null,
-    },
-  ];
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [cancellingId, setCancellingId] = useState(null);
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "delivered":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "shipped":
-        return <Truck className="h-5 w-5 text-blue-500" />;
-      case "processing":
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-      default:
-        return <XCircle className="h-5 w-5 text-red-500" />;
-    }
-  };
+  useEffect(() => {
+    let active = true;
+    orderService
+      .getOrders()
+      .then(({ data }) => active && setOrders(data.orders || []))
+      .catch(
+        (err) =>
+          active &&
+          setError(err?.response?.data?.error || "Failed to load your orders.")
+      )
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "shipped":
-        return "bg-blue-100 text-blue-800";
-      case "processing":
-        return "bg-yellow-100 text-yellow-800";
-      default:
-        return "bg-red-100 text-red-800";
+  const handleCancel = async (orderId) => {
+    if (!window.confirm("Cancel this order?")) return;
+    setCancellingId(orderId);
+    try {
+      await orderService.cancelOrder(orderId);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o))
+      );
+    } catch (err) {
+      setError(err?.response?.data?.error || "Could not cancel the order.");
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -72,60 +87,77 @@ const Orders = () => {
           </p>
         </div>
 
+        {error && (
+          <p className="mb-6 text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        )}
+
+        {loading && (
+          <div className="flex justify-center py-16">
+            <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
+          </div>
+        )}
+
         <div className="space-y-6">
-          {orders.map((order, index) => (
-            <motion.div
-              key={order.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white rounded-lg shadow-md overflow-hidden"
-            >
-              {/* Order Header */}
-              <div className="border-b border-gray-200 px-6 py-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Package className="h-6 w-6 text-gray-400" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Order {order.id}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Placed on {new Date(order.date).toLocaleDateString()}
-                      </p>
+          {orders.map((order, index) => {
+            const status = STATUS[order.status] || STATUS.pending;
+            return (
+              <motion.div
+                key={order.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white rounded-lg shadow-md overflow-hidden"
+              >
+                <div className="border-b border-gray-200 px-6 py-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Package className="h-6 w-6 text-gray-400" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Order #{order.id}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Placed on{" "}
+                          {new Date(order.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4 mt-2 sm:mt-0">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}
+                      >
+                        {status.label}
+                      </span>
+                      <span className="text-lg font-bold text-gray-900">
+                        ${Number(order.totalAmount).toFixed(2)}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4 mt-2 sm:mt-0">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
-                      {order.status.charAt(0).toUpperCase() +
-                        order.status.slice(1)}
-                    </span>
-                    <span className="text-lg font-bold text-gray-900">
-                      ${order.total.toFixed(2)}
-                    </span>
-                  </div>
                 </div>
-              </div>
 
-              {/* Order Items */}
-              <div className="px-6 py-4">
-                <div className="space-y-3">
-                  {order.items.map((item, itemIndex) => (
+                <div className="px-6 py-4 space-y-3">
+                  {order.items.map((item, i) => (
                     <div
-                      key={itemIndex}
+                      key={`${item.productId}-${i}`}
                       className="flex justify-between items-center py-2"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Package className="h-5 w-5 text-gray-500" />
-                        </div>
+                        {item.product?.images?.[0] ? (
+                          <img
+                            src={item.product.images[0]}
+                            alt={item.product.name}
+                            className="w-10 h-10 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <Package className="h-5 w-5 text-gray-500" />
+                          </div>
+                        )}
                         <div>
                           <p className="font-medium text-gray-900">
-                            {item.name}
+                            {item.product?.name || "Product no longer available"}
                           </p>
                           <p className="text-sm text-gray-600">
                             Qty: {item.quantity}
@@ -138,44 +170,34 @@ const Orders = () => {
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* Order Footer */}
-              <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                  <div className="flex items-center space-x-2">
-                    {getStatusIcon(order.status)}
-                    <span className="text-sm text-gray-600">
-                      {order.trackingNumber ? (
-                        <>Tracking: {order.trackingNumber}</>
-                      ) : (
-                        "Tracking number will be provided when shipped"
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex space-x-3">
-                    <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                      View Details
-                    </button>
-                    {order.status === "delivered" && (
-                      <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                        Buy Again
-                      </button>
-                    )}
-                    {order.status === "shipped" && (
-                      <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                        Track Package
+                <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {status.icon}
+                      <span className="text-sm text-gray-600">
+                        {order.Payment?.paymentMethod
+                          ? `Paid via ${order.Payment.paymentMethod}`
+                          : "Payment pending"}
+                      </span>
+                    </div>
+                    {order.status === "pending" && (
+                      <button
+                        onClick={() => handleCancel(order.id)}
+                        disabled={cancellingId === order.id}
+                        className="text-red-600 hover:text-red-700 font-medium text-sm disabled:opacity-50"
+                      >
+                        {cancellingId === order.id ? "Cancelling..." : "Cancel order"}
                       </button>
                     )}
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
 
-        {/* Empty State */}
-        {orders.length === 0 && (
+        {!loading && !error && orders.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -189,12 +211,12 @@ const Orders = () => {
               You haven't placed any orders yet. Start shopping to see your
               order history here.
             </p>
-            <button
-              onClick={() => (window.location.href = "/")}
+            <Link
+              to="/"
               className="bg-primary-600 text-black px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
             >
               Start Shopping
-            </button>
+            </Link>
           </motion.div>
         )}
       </div>

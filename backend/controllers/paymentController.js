@@ -1,27 +1,45 @@
 const Order = require("../models/mysql/Order");
 const Payment = require("../models/mysql/Payment");
+const stripe = require("../config/stripe");
 const paymentService = require("../services/paymentService");
+
+// "confirmed" isn't in the Order status enum, so paid orders go to "processing"
+const PAID_STATUS = "processing";
+
+// publishable key for the frontend
+const getPaymentConfig = (req, res) => {
+  if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+    return res.status(500).json({ error: "Stripe is not configured on the server" });
+  }
+  res.json({ stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY });
+};
+
+// safe to call twice, only pending orders are updated
+const markOrderPaid = async (orderId, { transactionId, paymentDetails }) => {
+  await Payment.update(
+    { status: "completed", transactionId, paymentDetails },
+    { where: { orderId } }
+  );
+  await Order.update(
+    { status: PAID_STATUS },
+    { where: { id: orderId, status: "pending" } }
+  );
+};
 
 const createPaymentIntent = async (req, res) => {
   try {
     const { orderId, paymentMethod } = req.body;
     const userId = req.user.id;
 
-    // Verify order exists and belongs to user
-    const order = await Order.findOne({
-      where: { id: orderId, userId },
-    });
-
+    const order = await Order.findOne({ where: { id: orderId, userId } });
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
-
     if (order.status !== "pending") {
       return res.status(400).json({ error: "Order cannot be paid for" });
     }
 
     let paymentResult;
-
     if (paymentMethod === "stripe") {
       paymentResult = await paymentService.createStripePaymentIntent(order);
     } else if (paymentMethod === "paypal") {
@@ -30,22 +48,16 @@ const createPaymentIntent = async (req, res) => {
       return res.status(400).json({ error: "Unsupported payment method" });
     }
 
-    // Update payment record
     await Payment.update(
       {
         paymentMethod,
         transactionId: paymentResult.paymentIntentId || paymentResult.paymentId,
         status: "pending",
       },
-      {
-        where: { orderId },
-      }
+      { where: { orderId } }
     );
 
-    res.json({
-      paymentMethod,
-      ...paymentResult,
-    });
+    res.json({ paymentMethod, ...paymentResult });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -56,10 +68,7 @@ const confirmPayment = async (req, res) => {
     const { orderId, paymentMethod, paymentData } = req.body;
     const userId = req.user.id;
 
-    const order = await Order.findOne({
-      where: { id: orderId, userId },
-    });
-
+    const order = await Order.findOne({ where: { id: orderId, userId } });
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
@@ -69,70 +78,52 @@ const confirmPayment = async (req, res) => {
       return res.status(404).json({ error: "Payment record not found" });
     }
 
-    let paymentResult;
+    // already paid (webhook may have come first)
+    if (payment.status === "completed") {
+      return res.json({
+        success: true,
+        message: "Payment already completed",
+        order: { id: order.id, status: order.status },
+      });
+    }
 
+    if (order.status === "cancelled") {
+      return res.status(409).json({ error: "This order was cancelled" });
+    }
+
+    let paymentResult;
     if (paymentMethod === "stripe") {
-      const { paymentIntentId } = paymentData;
-      paymentResult = await paymentService.confirmStripePayment(
-        paymentIntentId
-      );
+      const paymentIntentId = paymentData?.paymentIntentId;
+      // intent has to belong to this order
+      if (!paymentIntentId || paymentIntentId !== payment.transactionId) {
+        return res.status(400).json({ error: "Payment does not match this order" });
+      }
+      paymentResult = await paymentService.confirmStripePayment(paymentIntentId);
     } else if (paymentMethod === "paypal") {
-      const { paymentId, payerId } = paymentData;
-      paymentResult = await paymentService.executePayPalPayment(
-        paymentId,
-        payerId
-      );
+      const { paymentId, payerId } = paymentData || {};
+      paymentResult = await paymentService.executePayPalPayment(paymentId, payerId);
+    } else {
+      return res.status(400).json({ error: "Unsupported payment method" });
     }
 
     if (paymentResult.success) {
-      // Update payment record
-      await Payment.update(
-        {
-          status: "completed",
-          transactionId: paymentResult.transactionId,
-          paymentDetails: paymentResult.paymentDetails,
-        },
-        {
-          where: { orderId },
-        }
-      );
-
-      // Update order status
-      await Order.update(
-        {
-          status: "confirmed",
-        },
-        {
-          where: { id: orderId },
-        }
-      );
-
-      res.json({
+      await markOrderPaid(orderId, paymentResult);
+      return res.json({
         success: true,
         message: "Payment completed successfully",
-        order: {
-          id: order.id,
-          status: "confirmed",
-        },
-      });
-    } else {
-      // Payment failed
-      await Payment.update(
-        {
-          status: "failed",
-          paymentDetails: paymentResult,
-        },
-        {
-          where: { orderId },
-        }
-      );
-
-      res.status(400).json({
-        success: false,
-        error: "Payment failed",
-        details: paymentResult.error,
+        order: { id: order.id, status: PAID_STATUS },
       });
     }
+
+    await Payment.update(
+      { status: "failed", paymentDetails: paymentResult },
+      { where: { orderId } }
+    );
+    res.status(400).json({
+      success: false,
+      error: "Payment failed",
+      details: paymentResult.error,
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -153,87 +144,64 @@ const getPaymentMethods = async (req, res) => {
         description: "Pay with your PayPal account",
       },
     ];
-
     res.json({ paymentMethods });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch payment methods" });
   }
 };
 
+// stripe webhook, needs the raw body (see server.js)
 const handlePaymentWebhook = async (req, res) => {
+  let event;
   try {
-    const sig = req.headers["stripe-signature"];
-    let event;
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      req.headers["stripe-signature"],
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (err) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    // Handle the event
+  try {
     switch (event.type) {
       case "payment_intent.succeeded":
-        const paymentIntent = event.data.object;
-        await handleSuccessfulPayment(paymentIntent);
+        await handleSuccessfulPayment(event.data.object);
         break;
       case "payment_intent.payment_failed":
-        const failedPayment = event.data.object;
-        await handleFailedPayment(failedPayment);
+        await handleFailedPayment(event.data.object);
         break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
-
     res.json({ received: true });
   } catch (error) {
+    console.error("Webhook processing failed:", error);
     res.status(500).json({ error: "Webhook processing failed" });
   }
 };
 
 const handleSuccessfulPayment = async (paymentIntent) => {
-  const { orderId } = paymentIntent.metadata;
-
-  await Payment.update(
-    {
-      status: "completed",
-      transactionId: paymentIntent.id,
-      paymentDetails: paymentIntent,
-    },
-    {
-      where: { orderId },
-    }
-  );
-
-  await Order.update(
-    {
-      status: "confirmed",
-    },
-    {
-      where: { id: orderId },
-    }
-  );
+  const { orderId } = paymentIntent.metadata || {};
+  if (!orderId) return;
+  await markOrderPaid(orderId, {
+    transactionId: paymentIntent.id,
+    paymentDetails: paymentIntent,
+  });
 };
 
 const handleFailedPayment = async (paymentIntent) => {
-  const { orderId } = paymentIntent.metadata;
-
+  const { orderId } = paymentIntent.metadata || {};
+  if (!orderId) return;
+  // keep the order pending so they can retry
   await Payment.update(
-    {
-      status: "failed",
-      paymentDetails: paymentIntent,
-    },
-    {
-      where: { orderId },
-    }
+    { status: "failed", paymentDetails: paymentIntent },
+    { where: { orderId, status: "pending" } }
   );
 };
 
 module.exports = {
+  getPaymentConfig,
   createPaymentIntent,
   confirmPayment,
   getPaymentMethods,
