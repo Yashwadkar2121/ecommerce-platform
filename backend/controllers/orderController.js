@@ -3,8 +3,26 @@ const OrderItem = require("../models/mysql/OrderItem");
 const Payment = require("../models/mysql/Payment");
 const Product = require("../models/mongodb/Product");
 const { getSequelize } = require("../config/database");
+const { computeTotals } = require("../config/pricing");
+
+const REQUIRED_ADDRESS_FIELDS = ["firstName", "lastName", "address", "city", "state", "zipCode"];
+
+// Give reserved stock back (used when an order fails or is cancelled)
+const restoreStock = async (items) => {
+  for (const item of items) {
+    try {
+      await Product.findByIdAndUpdate(item.productId, {
+        $inc: { inventory: item.quantity },
+      });
+    } catch (err) {
+      console.error(`Failed to restore stock for ${item.productId}:`, err.message);
+    }
+  }
+};
 
 // 🧾 Create Order
+// Prices and tax are always computed on the server from the database.
+// Stock is reserved atomically; it is given back if anything later fails.
 const createOrder = async (req, res) => {
   const sequelize = getSequelize();
   if (!sequelize) {
@@ -13,131 +31,153 @@ const createOrder = async (req, res) => {
       .json({ error: "Database not initialized. Please restart the server." });
   }
 
-  const transaction = await sequelize.transaction();
+  const { items, shippingAddress, paymentMethod = "stripe" } = req.body;
+  const userId = req.user.id;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "No items provided for the order." });
+  }
+
+  if (
+    !shippingAddress ||
+    REQUIRED_ADDRESS_FIELDS.some((f) => !String(shippingAddress[f] || "").trim())
+  ) {
+    return res.status(400).json({
+      error: `Shipping address is incomplete. Required: ${REQUIRED_ADDRESS_FIELDS.join(", ")}.`,
+    });
+  }
+
+  // Merge duplicate product lines and validate quantities
+  const wanted = new Map();
+  for (const item of items) {
+    const quantity = Math.floor(Number(item?.quantity));
+    if (!item?.productId || !Number.isFinite(quantity) || quantity < 1) {
+      return res.status(400).json({ error: "Each item needs a productId and a quantity of at least 1." });
+    }
+    const key = String(item.productId);
+    wanted.set(key, (wanted.get(key) || 0) + quantity);
+  }
+
+  const reserved = []; // { productId, quantity, price, name }
 
   try {
-    const { items, shippingAddress, paymentMethod } = req.body;
-    const userId = req.user.id;
+    // 1️⃣ Reserve stock atomically (never oversell, even with concurrent orders)
+    for (const [productId, quantity] of wanted) {
+      let product = null;
+      try {
+        product = await Product.findOneAndUpdate(
+          { _id: productId, isActive: { $ne: false }, inventory: { $gte: quantity } },
+          { $inc: { inventory: -quantity } },
+          { new: false }
+        );
+      } catch (err) {
+        product = null; // invalid ObjectId etc.
+      }
 
-    if (!items || items.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No items provided for the order." });
-    }
-
-    // Calculate total and check inventory
-    let totalAmount = 0;
-    const inventoryUpdates = [];
-
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-
-      // 🧩 If product not found → respond immediately
       if (!product) {
-        await transaction.rollback();
-        return res.status(404).json({
-          error: `Product with ID ${item.productId} is not available.`,
-        });
-      }
-
-      // 🧩 If product out of stock → respond immediately
-      if (product.inventory < item.quantity) {
-        await transaction.rollback();
+        await restoreStock(reserved);
+        const existing = await Product.findById(productId).catch(() => null);
+        if (!existing || existing.isActive === false) {
+          return res.status(404).json({
+            error: `Product with ID ${productId} is not available.`,
+          });
+        }
         return res.status(400).json({
-          error: `Insufficient inventory for product "${product.name}". Only ${product.inventory} left.`,
+          error: `Insufficient inventory for product "${existing.name}". Only ${existing.inventory} left.`,
         });
       }
 
-      totalAmount += product.price * item.quantity;
-      inventoryUpdates.push({
-        productId: item.productId,
-        quantity: item.quantity,
-        currentPrice: product.price,
-      });
+      reserved.push({ productId, quantity, price: product.price, name: product.name });
     }
 
-    // 🧾 Create order
-    const order = await Order.create(
-      {
-        userId,
-        totalAmount,
-        shippingAddress,
-        status: "pending",
-      },
-      { transaction }
-    );
+    // 2️⃣ Totals (server-side)
+    const subtotal = reserved.reduce((sum, r) => sum + r.price * r.quantity, 0);
+    const totals = computeTotals(subtotal);
 
-    // Create order items & update inventory
-    for (const update of inventoryUpdates) {
-      await OrderItem.create(
-        {
-          orderId: order.id,
-          productId: update.productId,
-          quantity: update.quantity,
-          price: update.currentPrice,
-        },
+    // 3️⃣ Persist order, items and payment record in one SQL transaction
+    const transaction = await sequelize.transaction();
+    try {
+      const order = await Order.create(
+        { userId, totalAmount: totals.total, shippingAddress, status: "pending" },
         { transaction }
       );
 
-      // Update inventory in MongoDB
-      await Product.findByIdAndUpdate(update.productId, {
-        $inc: { inventory: -update.quantity },
+      for (const r of reserved) {
+        await OrderItem.create(
+          { orderId: order.id, productId: r.productId, quantity: r.quantity, price: r.price },
+          { transaction }
+        );
+      }
+
+      const payment = await Payment.create(
+        { orderId: order.id, paymentMethod, amount: totals.total, status: "pending" },
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      return res.status(201).json({
+        message: "Order created successfully",
+        order: {
+          id: order.id,
+          totalAmount: order.totalAmount,
+          status: order.status,
+          ...totals,
+        },
+        payment: { id: payment.id, amount: payment.amount },
       });
+    } catch (dbError) {
+      await transaction.rollback();
+      throw dbError;
     }
-
-    // 💳 Create payment record
-    const payment = await Payment.create(
-      {
-        orderId: order.id,
-        paymentMethod,
-        amount: totalAmount,
-        status: "pending",
-      },
-      { transaction }
-    );
-
-    await transaction.commit();
-
-    res.status(201).json({
-      message: "Order created successfully",
-      order: {
-        id: order.id,
-        totalAmount: order.totalAmount,
-        status: order.status,
-      },
-      payment: {
-        id: payment.id,
-        amount: payment.amount,
-      },
-    });
   } catch (error) {
-    await transaction.rollback();
-    res.status(400).json({ error: error.message });
+    await restoreStock(reserved);
+    console.error("Error in createOrder:", error);
+    return res.status(400).json({ error: error.message });
   }
+};
+
+// Attach product name/image to order items with ONE Mongo query
+const attachProducts = async (orders) => {
+  const ids = new Set();
+  orders.forEach((o) => (o.OrderItems || []).forEach((i) => ids.add(i.productId)));
+
+  const products = await Product.find({ _id: { $in: [...ids] } })
+    .select("name images")
+    .lean()
+    .catch(() => []);
+  const byId = new Map(products.map((p) => [String(p._id), p]));
+
+  return orders.map((order) => {
+    const { OrderItems, ...rest } = order.toJSON();
+    return {
+      ...rest,
+      items: (OrderItems || []).map((item) => {
+        const p = byId.get(String(item.productId));
+        return {
+          ...item,
+          product: p ? { name: p.name, images: p.images } : null,
+        };
+      }),
+    };
+  });
 };
 
 // 📜 Get Order History
 const getOrderHistory = async (req, res) => {
   try {
-    const userId = req.user.id;
     const orders = await Order.findAll({
-      where: { userId },
+      where: { userId: req.user.id },
       include: [
-        {
-          model: OrderItem,
-          attributes: ["productId", "quantity", "price"],
-        },
-        {
-          model: Payment,
-          attributes: ["status", "paymentMethod", "transactionId"],
-        },
+        { model: OrderItem, attributes: ["productId", "quantity", "price"] },
+        { model: Payment, attributes: ["status", "paymentMethod", "transactionId"] },
       ],
       order: [["createdAt", "DESC"]],
     });
 
-    res.json({ orders });
+    res.json({ orders: await attachProducts(orders) });
   } catch (error) {
-    console.error("Error in getOrderHistory:", error); // 🪵 log full error
+    console.error("Error in getOrderHistory:", error);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
@@ -145,24 +185,13 @@ const getOrderHistory = async (req, res) => {
 // 🔍 Get Order Details
 const getOrderDetails = async (req, res) => {
   try {
-    const { orderId } = req.params;
-    const userId = req.user.id;
-
     const order = await Order.findOne({
-      where: { id: orderId, userId },
+      where: { id: req.params.orderId, userId: req.user.id },
       include: [
-        {
-          model: OrderItem,
-          attributes: ["productId", "quantity", "price"],
-        },
+        { model: OrderItem, attributes: ["productId", "quantity", "price"] },
         {
           model: Payment,
-          attributes: [
-            "status",
-            "paymentMethod",
-            "transactionId",
-            "paymentDetails",
-          ],
+          attributes: ["status", "paymentMethod", "transactionId", "paymentDetails"],
         },
       ],
     });
@@ -171,30 +200,58 @@ const getOrderDetails = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Fetch product details from MongoDB
-    const orderItemsWithProducts = await Promise.all(
-      order.OrderItems.map(async (item) => {
-        const product = await Product.findById(item.productId);
-        return {
-          ...item.toJSON(),
-          product: product
-            ? {
-                name: product.name,
-                images: product.images,
-              }
-            : null,
-        };
-      })
-    );
-
-    res.json({
-      order: {
-        ...order.toJSON(),
-        items: orderItemsWithProducts,
-      },
-    });
+    const [detailed] = await attachProducts([order]);
+    res.json({ order: detailed });
   } catch (error) {
+    console.error("Error in getOrderDetails:", error);
     res.status(500).json({ error: "Failed to fetch order details" });
+  }
+};
+
+// ❌ Cancel an unpaid order and give the stock back
+const cancelOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    const order = await Order.findOne({
+      where: { id: orderId, userId },
+      include: [{ model: OrderItem }, { model: Payment }],
+    });
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Atomic pending -> cancelled transition (guards against racing with a payment)
+    const [affected] = await Order.update(
+      { status: "cancelled" },
+      { where: { id: orderId, userId, status: "pending" } }
+    );
+    if (affected === 0) {
+      return res.status(409).json({
+        error: `Only unpaid orders can be cancelled (this order is "${order.status}").`,
+      });
+    }
+
+    await Payment.update({ status: "failed" }, { where: { orderId } });
+
+    // Best effort: cancel the Stripe PaymentIntent so it can't be paid later
+    const payment = order.Payment;
+    if (payment?.paymentMethod === "stripe" && payment.transactionId) {
+      try {
+        const stripe = require("../config/stripe");
+        await stripe.paymentIntents.cancel(payment.transactionId);
+      } catch (err) {
+        console.error("Could not cancel PaymentIntent:", err.message);
+      }
+    }
+
+    await restoreStock(order.OrderItems || []);
+
+    res.json({ message: "Order cancelled", order: { id: order.id, status: "cancelled" } });
+  } catch (error) {
+    console.error("Error in cancelOrder:", error);
+    res.status(500).json({ error: "Failed to cancel order" });
   }
 };
 
@@ -202,4 +259,5 @@ module.exports = {
   createOrder,
   getOrderHistory,
   getOrderDetails,
+  cancelOrder,
 };

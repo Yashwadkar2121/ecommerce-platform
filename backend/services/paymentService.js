@@ -1,6 +1,6 @@
 const stripe = require("../config/stripe");
 const paypal = require("paypal-rest-sdk");
-const { Payment } = require("../models/mysql/Payment");
+const Payment = require("../models/mysql/Payment");
 const { generateTransactionId } = require("../utils/helpers");
 
 // Configure PayPal

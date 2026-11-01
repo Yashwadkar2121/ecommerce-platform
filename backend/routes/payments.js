@@ -1,5 +1,6 @@
 const express = require("express");
 const {
+  getPaymentConfig,
   createPaymentIntent,
   confirmPayment,
   getPaymentMethods,
@@ -15,6 +16,7 @@ router.post("/webhook", handlePaymentWebhook);
 // Protected routes
 router.use(authenticate);
 
+router.get("/config", getPaymentConfig);
 router.post("/intent", createPaymentIntent);
 router.post("/confirm", confirmPayment);
 router.get("/methods", getPaymentMethods);
