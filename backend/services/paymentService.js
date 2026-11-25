@@ -1,6 +1,6 @@
 const stripe = require("../config/stripe");
 const paypal = require("paypal-rest-sdk");
-const { Payment } = require("../models/mysql/Payment");
+const Payment = require("../models/mysql/Payment");
 const { generateTransactionId } = require("../utils/helpers");
 
 // Configure PayPal
@@ -36,9 +36,8 @@ class PaymentService {
 
   async confirmStripePayment(paymentIntentId) {
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentId
-      );
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
 
       if (paymentIntent.status === "succeeded") {
         return {
@@ -88,7 +87,7 @@ class PaymentService {
           resolve({
             paymentId: payment.id,
             approvalUrl: payment.links.find(
-              (link) => link.rel === "approval_url"
+              (link) => link.rel === "approval_url",
             ).href,
           });
         }
@@ -108,7 +107,7 @@ class PaymentService {
         (error, payment) => {
           if (error) {
             reject(
-              new Error(`PayPal payment execution failed: ${error.message}`)
+              new Error(`PayPal payment execution failed: ${error.message}`),
             );
           } else {
             resolve({
@@ -117,7 +116,7 @@ class PaymentService {
               paymentDetails: payment,
             });
           }
-        }
+        },
       );
     });
   }

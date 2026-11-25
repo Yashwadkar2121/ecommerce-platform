@@ -8,7 +8,7 @@ const getCartKey = (userId) => `cart:${userId}`;
 
 const getCart = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const cartKey = getCartKey(userId);
 
     const cartData = await client.get(cartKey);
@@ -33,7 +33,7 @@ const getCart = async (req, res) => {
         } catch (error) {
           return { ...item, product: null };
         }
-      })
+      }),
     );
 
     // Remove items with invalid products
@@ -60,7 +60,7 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const { productId, quantity = 1 } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const cartKey = getCartKey(userId);
 
     // Check product existence and inventory
@@ -82,7 +82,7 @@ const addToCart = async (req, res) => {
 
     // Check if item already exists in cart
     const existingItemIndex = cart.items.findIndex(
-      (item) => item.productId === productId
+      (item) => item.productId === productId,
     );
 
     if (existingItemIndex > -1) {
@@ -106,10 +106,8 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // Recalculate total
-    cart.total = cart.items.reduce((total, item) => {
-      return total + product.price * item.quantity;
-    }, 0);
+    // Recalculate total across ALL items using current prices
+    cart.total = await calculateCartTotal(cart.items);
 
     // Save cart
     await client.setEx(cartKey, CART_EXPIRY, JSON.stringify(cart));
@@ -131,7 +129,7 @@ const updateCartItem = async (req, res) => {
   try {
     const { productId } = req.params;
     const { quantity } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const cartKey = getCartKey(userId);
 
     if (quantity < 0) {
@@ -142,7 +140,7 @@ const updateCartItem = async (req, res) => {
     if (quantity > 0) {
       const inventoryCheck = await inventoryService.checkInventory(
         productId,
-        quantity
+        quantity,
       );
       if (!inventoryCheck.sufficient) {
         return res.status(400).json({
@@ -160,7 +158,7 @@ const updateCartItem = async (req, res) => {
 
     const cart = JSON.parse(cartData);
     const itemIndex = cart.items.findIndex(
-      (item) => item.productId === productId
+      (item) => item.productId === productId,
     );
 
     if (itemIndex === -1) {
@@ -176,7 +174,6 @@ const updateCartItem = async (req, res) => {
     }
 
     // Recalculate total with current product prices
-    const product = await Product.findById(productId);
     cart.total = await calculateCartTotal(cart.items);
 
     // Save cart
@@ -198,7 +195,7 @@ const updateCartItem = async (req, res) => {
 const removeFromCart = async (req, res) => {
   try {
     const { productId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const cartKey = getCartKey(userId);
 
     const cartData = await client.get(cartKey);
@@ -236,7 +233,7 @@ const removeFromCart = async (req, res) => {
 
 const clearCart = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const cartKey = getCartKey(userId);
 
     // Get current cart data first
@@ -293,6 +290,65 @@ const clearCart = async (req, res) => {
   }
 };
 
+// Replace the stored cart with the client's cart (used to keep the Redux cart
+// and the server cart in sync). Every item is validated against the database:
+// unknown/inactive products are dropped and quantities are clamped to stock.
+const syncCart = async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: "items must be an array" });
+    }
+
+    const merged = new Map();
+    for (const raw of items) {
+      const qty = Math.floor(Number(raw?.quantity));
+      if (!raw?.productId || !Number.isFinite(qty) || qty < 1) continue;
+      merged.set(
+        String(raw.productId),
+        (merged.get(String(raw.productId)) || 0) + qty,
+      );
+    }
+
+    const cartItems = [];
+    for (const [productId, quantity] of merged) {
+      let product = null;
+      try {
+        product = await Product.findById(productId);
+      } catch (e) {
+        product = null; // invalid ObjectId
+      }
+      if (!product || product.isActive === false || product.inventory < 1) {
+        continue;
+      }
+      cartItems.push({
+        productId,
+        quantity: Math.min(quantity, product.inventory),
+        addedAt: new Date().toISOString(),
+      });
+    }
+
+    const cart = {
+      items: cartItems,
+      total: await calculateCartTotal(cartItems),
+    };
+
+    const cartKey = getCartKey(req.user.id);
+    if (cartItems.length === 0) {
+      await client.del(cartKey);
+    } else {
+      await client.setEx(cartKey, CART_EXPIRY, JSON.stringify(cart));
+    }
+
+    res.json({
+      message: "Cart synced",
+      cart: { ...cart, itemCount: cartItems.length },
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to sync cart" });
+  }
+};
+
 // Helper function to calculate cart total
 const calculateCartTotal = async (items) => {
   let total = 0;
@@ -313,4 +369,5 @@ module.exports = {
   updateCartItem,
   removeFromCart,
   clearCart,
+  syncCart,
 };

@@ -57,6 +57,16 @@ const User = sequelize.define(
     },
   },
   {
+    // By default the password hash is never loaded. Code that needs it
+    // (login, change/reset password) opts in with User.scope("withPassword").
+    defaultScope: {
+      attributes: { exclude: ["password"] },
+    },
+    scopes: {
+      // A named scope replaces the default scope, so this loads ALL columns
+      // (including password).
+      withPassword: {},
+    },
     hooks: {
       beforeCreate: async (user) => {
         user.password = await bcrypt.hash(user.password, 12);
