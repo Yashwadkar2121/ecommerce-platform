@@ -1,10 +1,16 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "E-commerce Platform Backend",
-  "main": "index.js",
+  "description": "E-commerce platform API (Express, MongoDB, MySQL-compatible SQL, Redis, Stripe, Gemini)",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "db:sync": "node scripts/syncDb.js",
+    "seed": "node scripts/seedProducts.js",
+    "seed:reset": "node scripts/seedProducts.js --reset",
+    "admin:create": "node scripts/createAdmin.js",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
@@ -30,5 +36,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

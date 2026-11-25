@@ -1,25 +1,30 @@
 // backend/scripts/seedProducts.js
 //
-// Fills the database with demo products (with images) so you can test how the
-// app behaves with a big catalogue.
+// Fills the database with demo products (with images and a few reviews) so you
+// can see how the app behaves with a big catalogue.
 //
 // Run it from the backend folder:
-//   node scripts/seedProducts.js                  add 10,000 products
-//   node scripts/seedProducts.js --count=5000     choose how many
-//   node scripts/seedProducts.js --reset          first delete products from an earlier seed run
+//   npm run seed                              add 10,000 products
+//   node scripts/seedProducts.js --count=5000 choose how many
+//   npm run seed:reset                        first delete products from an earlier seed run
 //
-// Seeded products are tagged "seed-data", so --reset never touches products
-// you added yourself. The data is generated from a fixed seed, so every run
-// produces the same catalogue.
+// Other options:
+//   --reviews=300     how many products get sample reviews (default 300, 0 = none)
+//   --skip-verify     do not check the image links before using them
+//
+// Seeded products are tagged "seed-data", so --reset never touches products you
+// added yourself. The data comes from a fixed random seed, so every run
+// produces the same products (only the "created" dates move with today). Prices are in US dollars.
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env"), quiet: true });
 
 const SEED_TAG = "seed-data";
 const BATCH_SIZE = 1000;
 
-// Images come from your category.json. The "w=600&q=70" parameters make
-// Unsplash serve a small thumbnail instead of the multi-megabyte original -
-// that is the biggest single win for page load speed.
+// Demo images are Unsplash photos. The "w=600&q=70" parameters make Unsplash
+// serve a small thumbnail instead of the multi-megabyte original - the biggest
+// single win for page load speed. Before seeding, the links are checked and any
+// photo that no longer exists is dropped (see verifyImagePools).
 const IMAGE_PARAMS = "auto=format&fit=crop&w=600&q=70";
 
 const IMAGE_IDS = {
@@ -101,10 +106,10 @@ const IMAGE_IDS = {
   ],
 };
 
-// category -> subcategory -> { nouns, brands }. Subcategories follow category.json.
+// category -> subcategory -> { nouns, brands }
 const CATALOG = {
   Electronics: {
-    price: [1499, 149999],
+    price: [18, 1800],
     subs: {
       Smartphones: { nouns: ["Smartphone", "5G Smartphone", "Android Phone"], brands: ["Apple", "Samsung", "OnePlus", "Xiaomi", "Realme"] },
       Headphones: { nouns: ["Wireless Headphones", "Over-Ear Headphones", "Earbuds", "Neckband"], brands: ["Sony", "boAt", "JBL", "Bose", "Sennheiser"] },
@@ -114,7 +119,7 @@ const CATALOG = {
     },
   },
   Fashion: {
-    price: [399, 24999],
+    price: [5, 300],
     subs: {
       "Men's Clothing": { nouns: ["T-Shirt", "Casual Shirt", "Jeans", "Chinos"], brands: ["Levi's", "H&M", "Zara", "Peter England", "Allen Solly"] },
       "Women's Clothing": { nouns: ["Kurti", "Dress", "Top", "Palazzo Set"], brands: ["Zara", "H&M", "W", "Biba", "Fabindia"] },
@@ -124,7 +129,7 @@ const CATALOG = {
     },
   },
   Home: {
-    price: [499, 89999],
+    price: [6, 1100],
     subs: {
       Furniture: { nouns: ["Sofa", "Study Table", "Bookshelf", "Office Chair"], brands: ["IKEA", "Wakefit", "Godrej Interio", "Nilkamal"] },
       Appliances: { nouns: ["Air Fryer", "Mixer Grinder", "Microwave Oven", "Water Purifier"], brands: ["Philips", "Preethi", "LG", "Prestige", "Bajaj"] },
@@ -134,7 +139,7 @@ const CATALOG = {
     },
   },
   Health: {
-    price: [199, 6999],
+    price: [3, 85],
     subs: {
       Monitoring: { nouns: ["Blood Pressure Monitor", "Digital Thermometer", "Pulse Oximeter", "Glucometer"], brands: ["Omron", "Dr Morepen", "Accu-Chek", "Beurer"] },
       Skincare: { nouns: ["Face Serum", "Moisturizer", "Sunscreen", "Face Wash"], brands: ["The Ordinary", "Cetaphil", "Minimalist", "Neutrogena", "Lakmé"] },
@@ -144,7 +149,7 @@ const CATALOG = {
     },
   },
   Books: {
-    price: [149, 3999],
+    price: [2, 48],
     subs: {
       "Self-Help": { nouns: ["Self-Help Book", "Habit Building Guide", "Productivity Handbook"], brands: ["Penguin", "HarperCollins", "Jaico", "Hay House"] },
       Finance: { nouns: ["Investing Guide", "Personal Finance Book", "Stock Market Handbook"], brands: ["Harriman House", "Penguin", "Wiley", "Jaico"] },
@@ -154,7 +159,7 @@ const CATALOG = {
     },
   },
   Sports: {
-    price: [299, 14999],
+    price: [4, 180],
     subs: {
       Football: { nouns: ["Football", "Football Boots", "Goalkeeper Gloves"], brands: ["Nike", "Adidas", "Puma", "Nivia"] },
       Cricket: { nouns: ["Cricket Bat", "Cricket Ball Set", "Batting Gloves", "Cricket Kit Bag"], brands: ["SG", "SS", "MRF", "Kookaburra"] },
@@ -164,7 +169,7 @@ const CATALOG = {
     },
   },
   Groceries: {
-    price: [49, 1999],
+    price: [1, 24],
     subs: {
       Grains: { nouns: ["Basmati Rice", "Whole Wheat Atta", "Quinoa", "Millet Flour"], brands: ["India Gate", "Aashirvaad", "Fortune", "Tata Sampann"] },
       Oils: { nouns: ["Olive Oil", "Sunflower Oil", "Mustard Oil", "Coconut Oil"], brands: ["Bertolli", "Fortune", "Saffola", "Dhara"] },
@@ -174,7 +179,7 @@ const CATALOG = {
     },
   },
   Automotive: {
-    price: [149, 9999],
+    price: [2, 120],
     subs: {
       Tyres: { nouns: ["Car Tyre", "Bike Tyre", "Tubeless Tyre"], brands: ["MRF", "CEAT", "Apollo", "Bridgestone"] },
       Batteries: { nouns: ["Car Battery", "Bike Battery", "Inverter Battery"], brands: ["Exide", "Amaron", "Luminous", "SF Sonic"] },
@@ -184,7 +189,7 @@ const CATALOG = {
     },
   },
   Entertainment: {
-    price: [299, 59999],
+    price: [4, 720],
     subs: {
       Gaming: { nouns: ["Gaming Controller", "Gaming Headset", "Gaming Mouse", "Console"], brands: ["Sony", "Logitech", "Razer", "Microsoft"] },
       Audio: { nouns: ["Bluetooth Speaker", "Soundbar", "Home Theatre"], brands: ["JBL", "boAt", "Bose", "Marshall"] },
@@ -194,7 +199,7 @@ const CATALOG = {
     },
   },
   Toys: {
-    price: [199, 7999],
+    price: [3, 96],
     subs: {
       "Building Blocks": { nouns: ["Building Set", "Brick Box", "Castle Set"], brands: ["LEGO", "Mega Bloks", "Funskool", "Playmobil"] },
       "Remote Control": { nouns: ["RC Car", "RC Helicopter", "Stunt Drone"], brands: ["Hot Wheels", "Hubsan", "Maisto", "Syma"] },
@@ -230,13 +235,17 @@ function mulberry32(seed) {
   };
 }
 
-// Price that looks like a real shop price (e.g. 1499, 24999, 249)
+// Price that looks like a real shop price in dollars (e.g. 0.99, 13.99, 249.99)
 function shopPrice(raw) {
-  const step = raw >= 1000 ? 100 : raw >= 100 ? 10 : 1;
-  return Math.max(step > 1 ? step - 1 : 1, Math.round(raw / step) * step - 1);
+  const rounded = raw >= 100 ? Math.round(raw / 5) * 5 : Math.round(raw);
+  return Math.max(0.99, Math.round((rounded - 0.01) * 100) / 100);
 }
 
-function generateProducts(count, seed = 20260101) {
+// Image pools hold Unsplash photo ids, or full URLs (used as a fallback)
+const imageUrl = (entry) =>
+  /^https?:\/\//.test(entry) ? entry : `https://images.unsplash.com/${entry}?${IMAGE_PARAMS}`;
+
+function generateProducts(count, seed = 20260101, imagePools = IMAGE_IDS) {
   const rand = mulberry32(seed);
   const pick = (list) => list[Math.floor(rand() * list.length)];
   const categories = Object.keys(CATALOG);
@@ -263,12 +272,10 @@ function generateProducts(count, seed = 20260101) {
     const price = shopPrice(min * Math.pow(max / min, rand()));
 
     // two different images from the category's pool, resized to thumbnails
-    const pool = IMAGE_IDS[category];
+    const pool = imagePools[category];
     const first = Math.floor(rand() * pool.length);
-    const second = (first + 1 + Math.floor(rand() * (pool.length - 1))) % pool.length;
-    const images = [first, second].map(
-      (n) => `https://images.unsplash.com/${pool[n]}?${IMAGE_PARAMS}`
-    );
+    const second = pool.length > 1 ? (first + 1 + Math.floor(rand() * (pool.length - 1))) % pool.length : first;
+    const images = [...new Set([first, second])].map((n) => imageUrl(pool[n]));
 
     const createdAt = new Date(now - Math.floor(rand() * TWO_YEARS));
 
@@ -297,17 +304,134 @@ function generateProducts(count, seed = 20260101) {
 }
 
 function parseArgs(argv) {
-  const args = { count: 10000, reset: false, force: false };
+  const args = { count: 10000, reset: false, force: false, reviews: 300, verify: true };
   for (const arg of argv) {
     if (arg === "--reset") args.reset = true;
     else if (arg === "--force") args.force = true;
+    else if (arg === "--skip-verify") args.verify = false;
     else if (arg.startsWith("--count=")) args.count = Number(arg.slice(8));
+    else if (arg.startsWith("--reviews=")) args.reviews = Number(arg.slice(10));
     else throw new Error(`Unknown option: ${arg}`);
+  }
+  if (!Number.isInteger(args.reviews) || args.reviews < 0) {
+    throw new Error("--reviews must be a whole number (0 or more)");
   }
   if (!Number.isInteger(args.count) || args.count < 1 || args.count > 200000) {
     throw new Error("--count must be a whole number between 1 and 200000");
   }
   return args;
+}
+
+
+// ---------- sample reviews (so the AI review summary has something to read) ----------
+const REVIEW_TEXT = {
+  positive: [
+    ["Great quality", "Really happy with this {noun}. Feels well made and works exactly as described."],
+    ["Worth the money", "Good value for the price. I have been using it daily and it still looks new."],
+    ["Fast delivery, nice product", "Arrived earlier than expected and well packed. The {noun} is better than I hoped."],
+    ["Highly recommend", "Easy to use and very reliable. I would happily buy this again."],
+    ["Exactly what I needed", "Does the job perfectly. Setup was simple and the finish looks premium."],
+  ],
+  neutral: [
+    ["Decent but not perfect", "The {noun} is fine for the price, though the packaging could be better."],
+    ["Okay overall", "Works as expected. Nothing special, but no major complaints either."],
+    ["Average", "Good enough for occasional use. I expected slightly better build quality."],
+  ],
+  negative: [
+    ["Not as expected", "The {noun} feels cheaper than the photos suggest and the finish wore out quickly."],
+    ["Disappointed", "Stopped working the way it should after a couple of weeks. Support was slow to reply."],
+    ["Too expensive for what it is", "Quality is average and the price is high compared to similar products."],
+  ],
+};
+
+// products: [{ _id, name, createdAt }]. Returns { reviews, ratingUpdates }.
+function generateReviews(products, seed = 20260102) {
+  const rand = mulberry32(seed);
+  const pick = (list) => list[Math.floor(rand() * list.length)];
+  const now = Date.now();
+  const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
+  const reviews = [];
+  const ratingUpdates = [];
+
+  for (const product of products) {
+    const noun = product.name.split(" ").slice(-3, -1).join(" ").toLowerCase() || "product";
+    const total = 3 + Math.floor(rand() * 4); // 3-6 reviews
+    let sum = 0;
+
+    for (let k = 0; k < total; k++) {
+      const roll = rand();
+      const mood = roll < 0.65 ? "positive" : roll < 0.85 ? "neutral" : "negative";
+      const rating =
+        mood === "positive" ? (rand() < 0.6 ? 5 : 4) : mood === "neutral" ? 3 : rand() < 0.5 ? 2 : 1;
+      const [title, comment] = pick(REVIEW_TEXT[mood]);
+      const createdAt = new Date(now - Math.floor(rand() * ONE_YEAR));
+      sum += rating;
+      reviews.push({
+        productId: product._id,
+        userId: 1000 + k, // demo reviewers, not real accounts
+        rating,
+        title,
+        comment: comment.replace("{noun}", noun),
+        isVerified: rand() < 0.7,
+        createdAt,
+        updatedAt: createdAt,
+        __v: 0,
+      });
+    }
+    ratingUpdates.push({
+      updateOne: {
+        filter: { _id: product._id },
+        update: { $set: { "ratings.average": Math.round((sum / total) * 10) / 10, "ratings.count": total } },
+      },
+    });
+  }
+  return { reviews, ratingUpdates };
+}
+
+// ---------- image verification ----------
+// Checks every demo photo (HTTP HEAD) and removes the ones that are gone, so
+// the shop never shows broken images. A category with no working photo left
+// falls back to generated placeholder photos.
+async function verifyImagePools(pools) {
+  const entries = [];
+  for (const [category, ids] of Object.entries(pools)) {
+    for (const id of ids) entries.push({ category, id });
+  }
+
+  let answered = 0;
+  const results = new Map();
+  const queue = [...entries];
+  const worker = async () => {
+    while (queue.length) {
+      const { category, id } = queue.shift();
+      try {
+        const response = await fetch(imageUrl(id), { method: "HEAD", signal: AbortSignal.timeout(8000) });
+        answered++;
+        results.set(`${category}|${id}`, response.ok);
+      } catch {
+        results.set(`${category}|${id}`, null); // network problem, not a verdict
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
+
+  if (answered === 0) {
+    console.warn("⚠️  Could not reach Unsplash to check the images - using them unchecked.");
+    return pools;
+  }
+
+  const verified = {};
+  let removed = 0;
+  for (const [category, ids] of Object.entries(pools)) {
+    const keep = ids.filter((id) => results.get(`${category}|${id}`) !== false);
+    removed += ids.length - keep.length;
+    verified[category] =
+      keep.length > 0
+        ? keep
+        : Array.from({ length: 6 }, (_, n) => `https://picsum.photos/seed/${category.toLowerCase()}-${n}/600/600`);
+  }
+  console.log(`🖼️  Checked ${entries.length} images, removed ${removed} broken ones`);
+  return verified;
 }
 
 // Cached product lists/categories live in Redis for minutes to an hour, so
@@ -347,30 +471,54 @@ async function main() {
 
   const connectMongoDB = require("../config/mongodb");
   const Product = require("../models/mongodb/Product");
+  const Review = require("../models/mongodb/Review");
   await connectMongoDB();
 
   if (args.reset) {
+    const old = await Product.find({ tags: SEED_TAG }).select("_id").lean();
+    const ids = old.map((p) => p._id);
+    let removedReviews = 0;
+    for (let i = 0; i < ids.length; i += 1000) {
+      const { deletedCount } = await Review.deleteMany({ productId: { $in: ids.slice(i, i + 1000) } });
+      removedReviews += deletedCount;
+    }
     const { deletedCount } = await Product.deleteMany({ tags: SEED_TAG });
-    console.log(`🗑️  Removed ${deletedCount} products from the previous seed run`);
+    console.log(`🗑️  Removed ${deletedCount} products and ${removedReviews} reviews from the previous seed run`);
   }
 
+  const pools = args.verify ? await verifyImagePools(IMAGE_IDS) : IMAGE_IDS;
+
   console.log(`🌱 Generating ${args.count} products...`);
-  const products = generateProducts(args.count);
+  const products = generateProducts(args.count, undefined, pools);
 
   const started = Date.now();
   let inserted = 0;
+  const insertedIds = [];
   for (let i = 0; i < products.length; i += BATCH_SIZE) {
     const batch = products.slice(i, i + BATCH_SIZE);
     // The raw collection is used on purpose: it is much faster than Mongoose
     // for bulk inserts and keeps the createdAt dates generated above.
-    await Product.collection.insertMany(batch, { ordered: false });
+    const result = await Product.collection.insertMany(batch, { ordered: false });
+    batch.forEach((_, index) => insertedIds.push(result.insertedIds[index]));
     inserted += batch.length;
     console.log(`   inserted ${inserted}/${products.length}`);
   }
   console.log(`✅ Inserted ${inserted} products in ${((Date.now() - started) / 1000).toFixed(1)}s`);
 
+  if (args.reviews > 0) {
+    const reviewed = products
+      .map((p, index) => ({ _id: insertedIds[index], name: p.name, isActive: p.isActive }))
+      .filter((p) => p.isActive)
+      .slice(0, args.reviews);
+    const { reviews, ratingUpdates } = generateReviews(reviewed);
+    await Review.collection.insertMany(reviews, { ordered: false });
+    await Product.collection.bulkWrite(ratingUpdates, { ordered: false });
+    console.log(`💬 Added ${reviews.length} sample reviews to ${reviewed.length} products`);
+  }
+
   console.log("🔧 Making sure indexes exist (first run can take a few seconds)...");
   await Product.createIndexes();
+  await Review.createIndexes();
 
   await clearProductCache();
 
@@ -378,7 +526,7 @@ async function main() {
   console.log(`📦 Active products in the database now: ${total}`);
 }
 
-module.exports = { generateProducts, parseArgs, SEED_TAG };
+module.exports = { generateProducts, generateReviews, parseArgs, shopPrice, SEED_TAG, IMAGE_IDS };
 
 if (require.main === module) {
   main()

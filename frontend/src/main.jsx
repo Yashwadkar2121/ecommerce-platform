@@ -5,11 +5,13 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { store } from "./store/index.js";
 import { hydrateCart } from "./store/cartSync.js";
-import { logout } from "./store/slices/authSlice.js";
+import { logout, loadUser } from "./store/slices/authSlice.js";
 import "./index.css";
 
-// Restore the saved cart for a user who is already logged in
+// A user who is already logged in: load their profile (needed for the admin
+// link) and restore their saved cart
 if (localStorage.getItem("token")) {
+  store.dispatch(loadUser());
   store.dispatch(hydrateCart());
 }
 

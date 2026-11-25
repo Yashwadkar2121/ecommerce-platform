@@ -20,8 +20,12 @@ const {
 } = require("../controllers/adminController");
 const { authenticate, authorize } = require("../middleware/auth");
 const {
-  validateProductCreate, // ← CHANGED FROM validateProduct
+  validateProductCreate,
+  validateProductUpdate,
 } = require("../middleware/validations/productValidation");
+const { getUploadSignature } = require("../controllers/uploadController");
+const { description } = require("../controllers/aiController");
+const { aiGuard } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
@@ -35,8 +39,14 @@ router.get("/dashboard", getDashboardStats);
 // Product Management
 router.get("/products", adminGetProducts);
 router.post("/products", validateProductCreate, adminCreateProduct);
-router.put("/products/:productId", adminUpdateProduct);
+router.put("/products/:productId", validateProductUpdate, adminUpdateProduct);
 router.delete("/products/:productId", adminDeleteProduct);
+
+// Image uploads (browser uploads straight to Cloudinary using this signature)
+router.get("/uploads/signature", getUploadSignature);
+
+// AI helper for the product form
+router.post("/ai/description", aiGuard("description"), description);
 
 // Order Management
 router.get("/orders", adminGetOrders);
