@@ -10,13 +10,7 @@ const PAID_STATUS = "processing";
 // Publishable key for the frontend (safe to expose, saves a frontend env var)
 const getPaymentConfig = (req, res) => {
   if (!process.env.STRIPE_PUBLISHABLE_KEY) {
-<<<<<<< HEAD
-    return res
-      .status(500)
-      .json({ error: "Stripe is not configured on the server" });
-=======
     return res.status(500).json({ error: "Stripe is not configured on the server" });
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
   }
   res.json({ stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY });
 };
@@ -25,19 +19,11 @@ const getPaymentConfig = (req, res) => {
 const markOrderPaid = async (orderId, { transactionId, paymentDetails }) => {
   await Payment.update(
     { status: "completed", transactionId, paymentDetails },
-<<<<<<< HEAD
-    { where: { orderId } },
-  );
-  await Order.update(
-    { status: PAID_STATUS },
-    { where: { id: orderId, status: "pending" } },
-=======
     { where: { orderId } }
   );
   await Order.update(
     { status: PAID_STATUS },
     { where: { id: orderId, status: "pending" } }
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
   );
 };
 
@@ -69,11 +55,7 @@ const createPaymentIntent = async (req, res) => {
         transactionId: paymentResult.paymentIntentId || paymentResult.paymentId,
         status: "pending",
       },
-<<<<<<< HEAD
-      { where: { orderId } },
-=======
       { where: { orderId } }
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     );
 
     res.json({ paymentMethod, ...paymentResult });
@@ -115,27 +97,12 @@ const confirmPayment = async (req, res) => {
       const paymentIntentId = paymentData?.paymentIntentId;
       // The intent must be the one we created for THIS order
       if (!paymentIntentId || paymentIntentId !== payment.transactionId) {
-<<<<<<< HEAD
-        return res
-          .status(400)
-          .json({ error: "Payment does not match this order" });
-      }
-      paymentResult =
-        await paymentService.confirmStripePayment(paymentIntentId);
-    } else if (paymentMethod === "paypal") {
-      const { paymentId, payerId } = paymentData || {};
-      paymentResult = await paymentService.executePayPalPayment(
-        paymentId,
-        payerId,
-      );
-=======
         return res.status(400).json({ error: "Payment does not match this order" });
       }
       paymentResult = await paymentService.confirmStripePayment(paymentIntentId);
     } else if (paymentMethod === "paypal") {
       const { paymentId, payerId } = paymentData || {};
       paymentResult = await paymentService.executePayPalPayment(paymentId, payerId);
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     } else {
       return res.status(400).json({ error: "Unsupported payment method" });
     }
@@ -151,11 +118,7 @@ const confirmPayment = async (req, res) => {
 
     await Payment.update(
       { status: "failed", paymentDetails: paymentResult },
-<<<<<<< HEAD
-      { where: { orderId } },
-=======
       { where: { orderId } }
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     );
     res.status(400).json({
       success: false,
@@ -196,11 +159,7 @@ const handlePaymentWebhook = async (req, res) => {
     event = stripe.webhooks.constructEvent(
       req.body,
       req.headers["stripe-signature"],
-<<<<<<< HEAD
-      process.env.STRIPE_WEBHOOK_SECRET,
-=======
       process.env.STRIPE_WEBHOOK_SECRET
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     );
   } catch (err) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -239,11 +198,7 @@ const handleFailedPayment = async (paymentIntent) => {
   // Leave the order pending so the customer can retry
   await Payment.update(
     { status: "failed", paymentDetails: paymentIntent },
-<<<<<<< HEAD
-    { where: { orderId, status: "pending" } },
-=======
     { where: { orderId, status: "pending" } }
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
   );
 };
 

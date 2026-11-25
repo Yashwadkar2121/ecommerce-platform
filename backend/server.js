@@ -21,14 +21,6 @@ const errorHandler = require("./middleware/errorHandler");
 const { apiLimiter, authLimiter } = require("./middleware/rateLimit");
 
 const app = express();
-<<<<<<< HEAD
-
-// Stripe signs the RAW request body, so the webhook path must be parsed with
-// express.raw() BEFORE express.json() touches it.
-app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
-app.use(express.json());
-=======
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 
 // Behind Vercel's proxy: needed for correct client IPs (rate limiting)
 app.set("trust proxy", 1);
@@ -42,13 +34,9 @@ const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
 
 app.use(
   cors({
-<<<<<<< HEAD
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-=======
     origin: (origin, callback) =>
       // no Origin header = server-to-server call (Stripe webhook, curl)
       callback(null, !origin || allowedOrigins.includes(origin)),
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -61,7 +49,8 @@ app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json({ limit: "1mb" }));
 
 // Health checks work even if a database is down
-const health = (req, res) => res.json({ status: "ok", uptime: Math.round(process.uptime()) });
+const health = (req, res) =>
+  res.json({ status: "ok", uptime: Math.round(process.uptime()) });
 app.get("/", health);
 app.get("/api/health", health);
 
@@ -99,7 +88,8 @@ const buildApiRouter = async () => {
   // `npm run db:sync` once (or set DB_SYNC=true) instead of on every cold start.
   const syncSetting = process.env.DB_SYNC;
   const shouldSync =
-    syncSetting === "true" || (syncSetting !== "false" && process.env.NODE_ENV !== "production");
+    syncSetting === "true" ||
+    (syncSetting !== "false" && process.env.NODE_ENV !== "production");
   if (shouldSync) {
     require("./models/mysql/User"); // loads Order, OrderItem and Payment too
     require("./models/mysql/PasswordResetToken");
@@ -126,7 +116,9 @@ app.use(async (req, res, next) => {
     router(req, res, next);
   } catch (error) {
     console.error("❌ Startup error:", error.message);
-    res.status(503).json({ error: "Service temporarily unavailable. Please try again shortly." });
+    res.status(503).json({
+      error: "Service temporarily unavailable. Please try again shortly.",
+    });
   }
 });
 

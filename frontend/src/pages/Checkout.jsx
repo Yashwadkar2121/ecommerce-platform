@@ -75,13 +75,7 @@ const PaymentForm = ({ onPaid, onBack, disabled }) => {
     if (paymentIntent?.status === "succeeded") {
       await onPaid(paymentIntent.id); // parent moves to the confirmation step
     } else {
-<<<<<<< HEAD
-      setError(
-        `Payment is ${paymentIntent?.status || "not complete"}. Please try again.`,
-      );
-=======
       setError(`Payment is ${paymentIntent?.status || "not complete"}. Please try again.`);
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     }
     setSubmitting(false);
   };
@@ -90,13 +84,7 @@ const PaymentForm = ({ onPaid, onBack, disabled }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center space-x-2 text-gray-600">
         <Lock size={16} />
-<<<<<<< HEAD
-        <span className="text-sm">
-          Payments are processed securely by Stripe
-        </span>
-=======
         <span className="text-sm">Payments are processed securely by Stripe</span>
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
       </div>
 
       <PaymentElement />
@@ -121,15 +109,7 @@ const PaymentForm = ({ onPaid, onBack, disabled }) => {
           disabled={!stripe || submitting || disabled}
           className="flex-1 bg-primary-600 text-black py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 flex items-center justify-center"
         >
-<<<<<<< HEAD
-          {submitting ? (
-            <Loader2 className="animate-spin" size={20} />
-          ) : (
-            "Pay now"
-          )}
-=======
           {submitting ? <Loader2 className="animate-spin" size={20} /> : "Pay now"}
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
         </button>
       </div>
     </form>
@@ -162,13 +142,7 @@ const Checkout = () => {
   // Pre-fill the email once the profile is available
   useEffect(() => {
     if (user?.email) {
-<<<<<<< HEAD
-      setShipping((prev) =>
-        prev.email ? prev : { ...prev, email: user.email },
-      );
-=======
       setShipping((prev) => (prev.email ? prev : { ...prev, email: user.email }));
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     }
   }, [user]);
 
@@ -191,25 +165,13 @@ const Checkout = () => {
     let createdOrderId = null;
     try {
       const { data: orderData } = await orderService.createOrder({
-<<<<<<< HEAD
-        items: items.map(({ productId, quantity }) => ({
-          productId,
-          quantity,
-        })),
-=======
         items: items.map(({ productId, quantity }) => ({ productId, quantity })),
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
         shippingAddress: shipping,
         paymentMethod: "stripe",
       });
       createdOrderId = orderData.order.id;
 
-<<<<<<< HEAD
-      const { data: intent } =
-        await paymentService.createIntent(createdOrderId);
-=======
       const { data: intent } = await paymentService.createIntent(createdOrderId);
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
       const stripe = await getStripe();
 
       setOrder(orderData.order);
@@ -221,13 +183,7 @@ const Checkout = () => {
       if (createdOrderId) {
         orderService.cancelOrder(createdOrderId).catch(() => {});
       }
-<<<<<<< HEAD
-      setError(
-        errorMessage(err, "Could not start checkout. Please try again."),
-      );
-=======
       setError(errorMessage(err, "Could not start checkout. Please try again."));
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     } finally {
       setLoading(false);
     }
@@ -261,11 +217,7 @@ const Checkout = () => {
     } catch (err) {
       // The money was taken; Stripe's webhook will finish the order.
       setError(
-<<<<<<< HEAD
-        `${errorMessage(err, "We could not confirm your payment yet.")} Your card was charged - please check "My Orders" in a minute.`,
-=======
         `${errorMessage(err, "We could not confirm your payment yet.")} Your card was charged - please check "My Orders" in a minute.`
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
       );
     }
   };

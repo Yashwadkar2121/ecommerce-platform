@@ -15,11 +15,8 @@ import VerifyOTP from "../components/Forget-Password/VerifyOTP";
 import ResetPassword from "../components/Forget-Password/ResetPassword";
 import NotFound from "../pages/NotFound";
 import ProtectedRoute from "../components/ProtectedRoute";
-<<<<<<< HEAD
-=======
 import AdminRoute from "../components/AdminRoute";
 import AdminProducts from "../pages/admin/AdminProducts";
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 
 const AppRouter = () => {
   return (
@@ -29,10 +26,8 @@ const AppRouter = () => {
         <Routes>
           {/* Root path shows products */}
           <Route path="/" element={<Products />} />
-
           {/* Product details */}
           <Route path="/product/:id" element={<ProductDetails />} />
-
           {/* Cart & Checkout */}
           <Route path="/cart" element={<Cart />} />
           <Route
@@ -43,11 +38,9 @@ const AppRouter = () => {
               </ProtectedRoute>
             }
           />
-
           {/* Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
           {/* User Account */}
           <Route
             path="/profile"
@@ -57,6 +50,16 @@ const AppRouter = () => {
               </ProtectedRoute>
             }
           />
+          {/* User Account */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/orders"
             element={
@@ -65,8 +68,6 @@ const AppRouter = () => {
               </ProtectedRoute>
             }
           />
-<<<<<<< HEAD
-=======
 
           {/* Admin */}
           <Route
@@ -77,10 +78,8 @@ const AppRouter = () => {
               </AdminRoute>
             }
           />
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 
           {/* Password Recovery */}
-          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 

@@ -48,11 +48,7 @@ export const hydrateCart = createAsyncThunk(
     const merged = new Map(
       (data.items || [])
         .filter((i) => i.product)
-<<<<<<< HEAD
-        .map((i) => [i.productId, fromServerItem(i)]),
-=======
         .map((i) => [i.productId, fromServerItem(i)])
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     );
 
     const local = getState().cart.items;
@@ -61,11 +57,7 @@ export const hydrateCart = createAsyncThunk(
       if (existing) {
         existing.quantity = Math.min(
           existing.quantity + item.quantity,
-<<<<<<< HEAD
-          existing.maxQuantity ?? Infinity,
-=======
           existing.maxQuantity ?? Infinity
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
         );
       } else {
         merged.set(item.productId, { ...item });
@@ -78,17 +70,10 @@ export const hydrateCart = createAsyncThunk(
     // Local items were merged in -> store the combined cart on the server too
     if (local.length > 0) {
       await cartService.syncCart(
-<<<<<<< HEAD
-        items.map(({ productId, quantity }) => ({ productId, quantity })),
-      );
-    }
-  },
-=======
         items.map(({ productId, quantity }) => ({ productId, quantity }))
       );
     }
   }
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 );
 
 export const cartSyncMiddleware = createListenerMiddleware();
@@ -107,14 +92,7 @@ cartSyncMiddleware.startListening({
         .cart.items.map(({ productId, quantity }) => ({ productId, quantity }));
       await cartService.syncCart(items);
     } catch (error) {
-<<<<<<< HEAD
-      console.warn(
-        "Cart sync failed:",
-        error?.response?.data?.error || error.message,
-      );
-=======
       console.warn("Cart sync failed:", error?.response?.data?.error || error.message);
->>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     }
   },
 });
