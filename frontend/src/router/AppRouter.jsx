@@ -15,6 +15,11 @@ import VerifyOTP from "../components/Forget-Password/VerifyOTP";
 import ResetPassword from "../components/Forget-Password/ResetPassword";
 import NotFound from "../pages/NotFound";
 import ProtectedRoute from "../components/ProtectedRoute";
+<<<<<<< HEAD
+=======
+import AdminRoute from "../components/AdminRoute";
+import AdminProducts from "../pages/admin/AdminProducts";
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 
 const AppRouter = () => {
   return (
@@ -60,6 +65,19 @@ const AppRouter = () => {
               </ProtectedRoute>
             }
           />
+<<<<<<< HEAD
+=======
+
+          {/* Admin */}
+          <Route
+            path="/admin/products"
+            element={
+              <AdminRoute>
+                <AdminProducts />
+              </AdminRoute>
+            }
+          />
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 
           {/* Password Recovery */}
           <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -3,6 +3,11 @@ const Product = require("../models/mongodb/Product");
 const Review = require("../models/mongodb/Review");
 const { client } = require("../utils/redis");
 
+// User input is used inside $regex, so special characters must be escaped
+// (otherwise "c++" or "(" throws, and crafted patterns can hang the query).
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 class ProductService {
   // Get all products with filtering, sorting, and pagination
   async getProducts(query) {
@@ -40,33 +45,34 @@ class ProductService {
 
     // Text search with index - only for name, description, brand
     if (search) {
+      const pattern = escapeRegex(search);
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { brand: { $regex: search, $options: "i" } },
+        { name: { $regex: pattern, $options: "i" } },
+        { description: { $regex: pattern, $options: "i" } },
+        { brand: { $regex: pattern, $options: "i" } },
       ];
     }
 
-    // Sort options - optimized common sorts
-    let sort = {};
-    if (sortBy === "price" || sortBy === "createdAt") {
-      sort[sortBy] = sortOrder === "desc" ? -1 : 1;
-    } else if (sortBy === "ratings.average") {
-      sort = { "ratings.average": -1 };
-    } else if (sortBy === "name") {
-      sort = { name: 1 };
+    // Sort options. "_id" is always the last key so the order is fully
+    // deterministic - otherwise products with the same price/date can show up
+    // twice (or never) while paging with infinite scroll.
+    const dir = sortOrder === "desc" ? -1 : 1;
+    let sort;
+    if (sortBy === "price") {
+      sort = { price: dir, _id: dir };
     } else if (sortBy === "createdAt") {
-      sort = { createdAt: -1 };
+      sort = { createdAt: dir, _id: dir };
+    } else if (sortBy === "ratings.average") {
+      sort = { "ratings.average": -1, _id: -1 };
+    } else if (sortBy === "name") {
+      sort = { name: 1, _id: 1 };
+    } else {
+      sort = { createdAt: -1, _id: -1 }; // default: newest first
     }
 
     const queryLimit = parseInt(limit) || 24;
     const offset = (parseInt(page) - 1) * queryLimit;
 
-    console.log("🚀 ProductService.getProducts() called with:");
-    console.log("📋 Filter:", filter);
-    console.log("🔍 Search term:", search);
-    console.log("🏷️ Category:", category);
-    console.log("🏢 Brand:", brand);
 
     try {
       // Use Promise.all for parallel execution
@@ -76,13 +82,12 @@ class ProductService {
           .limit(queryLimit)
           .skip(offset)
           .select(
-            "_id name price brand category images inventory ratings description createdAt updatedAt",
+            "_id name price brand category images inventory ratings createdAt",
           )
           .lean(),
         Product.countDocuments(filter),
       ]);
 
-      console.log(`✅ Found ${products.length} products out of ${total} total`);
 
       const totalCount = Number(total) || 0;
       const totalPages = Math.ceil(totalCount / queryLimit);
@@ -108,21 +113,17 @@ class ProductService {
   // Get product by ID with reviews
   async getProductById(productId) {
     try {
-      console.log(`🔍 Fetching product by ID: ${productId}`);
 
       const product = await Product.findById(productId).lean();
 
       if (!product) {
-        console.log(`❌ Product not found: ${productId}`);
         throw new Error("Product not found");
       }
 
       if (!product.isActive) {
-        console.log(`⚠️ Product is not active: ${productId}`);
         throw new Error("Product is not available");
       }
 
-      console.log(`✅ Found product: ${product.name} (${product.category})`);
 
       // Get reviews in parallel
       const reviews = Review.find({ productId })
@@ -147,13 +148,11 @@ class ProductService {
   // Get all product categories
   async getProductCategories() {
     try {
-      console.log("🔍 Fetching all product categories");
 
       const categories = await Product.distinct("category", { isActive: true })
         .sort()
         .limit(50);
 
-      console.log(`✅ Found ${categories.length} categories:`, categories);
 
       return { categories };
     } catch (error) {
@@ -165,13 +164,11 @@ class ProductService {
   // Get all product brands
   async getProductBrands() {
     try {
-      console.log("🔍 Fetching all product brands");
 
       const brands = await Product.distinct("brand", { isActive: true })
         .sort()
         .limit(100);
 
-      console.log(`✅ Found ${brands.length} brands`);
 
       return { brands };
     } catch (error) {
@@ -232,7 +229,6 @@ class ProductService {
   // Get brands by category
   async getBrandsByCategory(category) {
     try {
-      console.log(`🔍 Fetching brands for category: ${category}`);
 
       const filter = { isActive: true };
       if (category) {
@@ -242,7 +238,6 @@ class ProductService {
 
       const brands = await Product.distinct("brand", filter).sort().limit(100);
 
-      console.log(`✅ Found ${brands.length} brands for category ${category}`);
 
       return { brands };
     } catch (error) {
@@ -257,7 +252,7 @@ class ProductService {
       return { products: [], suggestions: [] };
     }
 
-    const searchQuery = query.trim();
+    const searchQuery = escapeRegex(query.trim());
 
     // Search for products by name or description
     const products = await Product.find({

@@ -4,10 +4,45 @@ const Payment = require("../models/mysql/Payment");
 const Product = require("../models/mongodb/Product");
 const inventoryService = require("../services/inventoryService");
 const { paginate } = require("../utils/helpers");
+const { clearProductCache } = require("../utils/cacheInvalidate");
 const { getSequelize } = require("../config/database");
 
 const sequelize = getSequelize();
 const { Op } = require("sequelize");
+
+// Only these fields may be written by an admin request. Without this a request
+// could also set ratings, timestamps or any other field on the product.
+const PRODUCT_FIELDS = [
+  "name",
+  "description",
+  "price",
+  "category",
+  "subcategory",
+  "brand",
+  "images",
+  "inventory",
+  "attributes",
+  "tags",
+  "isActive",
+];
+
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const pickProductFields = (body = {}) => {
+  const data = {};
+  for (const field of PRODUCT_FIELDS) {
+    if (body[field] !== undefined) data[field] = body[field];
+  }
+  return data;
+};
+
+// Product images must be https links (they are uploaded to Cloudinary)
+const invalidImages = (images) =>
+  Array.isArray(images) &&
+  images.some(
+    (url) => typeof url !== "string" || url.length > 600 || !/^https:\/\//i.test(url)
+  );
 
 // Product Management
 const adminGetProducts = async (req, res) => {
@@ -16,7 +51,8 @@ const adminGetProducts = async (req, res) => {
 
     const filter = {};
     if (search) {
-      filter.$text = { $search: search };
+      const pattern = new RegExp(escapeRegex(search), "i");
+      filter.$or = [{ name: pattern }, { brand: pattern }, { category: pattern }];
     }
     if (category) {
       filter.category = category;
@@ -33,7 +69,8 @@ const adminGetProducts = async (req, res) => {
       Product.find(filter)
         .sort({ createdAt: -1 })
         .limit(queryLimit)
-        .skip(offset),
+        .skip(offset)
+        .lean(), // plain objects: faster, and "attributes" (a Map) arrives as a normal object
       Product.countDocuments(filter),
     ]);
 
@@ -53,24 +90,32 @@ const adminGetProducts = async (req, res) => {
 
 const adminCreateProduct = async (req, res) => {
   try {
-    const productData = req.body;
+    const productData = pickProductFields(req.body);
+    if (invalidImages(productData.images)) {
+      return res.status(400).json({ error: "Images must be https links." });
+    }
 
     const product = new Product(productData);
     await product.save();
+    await clearProductCache();
 
     res.status(201).json({
       message: "Product created successfully",
       product,
     });
   } catch (error) {
-    res.status(400).json({ error: "Failed to create product" });
+    console.error("Create product error:", error.message);
+    res.status(400).json({ error: error.message || "Failed to create product" });
   }
 };
 
 const adminUpdateProduct = async (req, res) => {
   try {
     const { productId } = req.params;
-    const updateData = req.body;
+    const updateData = pickProductFields(req.body);
+    if (invalidImages(updateData.images)) {
+      return res.status(400).json({ error: "Images must be https links." });
+    }
 
     const product = await Product.findByIdAndUpdate(productId, updateData, {
       new: true,
@@ -80,13 +125,15 @@ const adminUpdateProduct = async (req, res) => {
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
+    await clearProductCache();
 
     res.json({
       message: "Product updated successfully",
       product,
     });
   } catch (error) {
-    res.status(400).json({ error: "Failed to update product" });
+    console.error("Update product error:", error.message);
+    res.status(400).json({ error: error.message || "Failed to update product" });
   }
 };
 
@@ -98,6 +145,7 @@ const adminDeleteProduct = async (req, res) => {
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
+    await clearProductCache();
 
     res.json({ message: "Product deleted successfully" });
   } catch (error) {

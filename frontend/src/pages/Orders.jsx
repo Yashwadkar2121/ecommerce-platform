@@ -54,7 +54,11 @@ const Orders = () => {
       .catch(
         (err) =>
           active &&
+<<<<<<< HEAD
           setError(err?.response?.data?.error || "Failed to load your orders."),
+=======
+          setError(err?.response?.data?.error || "Failed to load your orders.")
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
       )
       .finally(() => active && setLoading(false));
     return () => {
@@ -68,7 +72,11 @@ const Orders = () => {
     try {
       await orderService.cancelOrder(orderId);
       setOrders((prev) =>
+<<<<<<< HEAD
         prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o)),
+=======
+        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o))
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
       );
     } catch (err) {
       setError(err?.response?.data?.error || "Could not cancel the order.");
@@ -157,8 +165,12 @@ const Orders = () => {
                         )}
                         <div>
                           <p className="font-medium text-gray-900">
+<<<<<<< HEAD
                             {item.product?.name ||
                               "Product no longer available"}
+=======
+                            {item.product?.name || "Product no longer available"}
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
                           </p>
                           <p className="text-sm text-gray-600">
                             Qty: {item.quantity}
@@ -188,9 +200,13 @@ const Orders = () => {
                         disabled={cancellingId === order.id}
                         className="text-red-600 hover:text-red-700 font-medium text-sm disabled:opacity-50"
                       >
+<<<<<<< HEAD
                         {cancellingId === order.id
                           ? "Cancelling..."
                           : "Cancel order"}
+=======
+                        {cancellingId === order.id ? "Cancelling..." : "Cancel order"}
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
                       </button>
                     )}
                   </div>

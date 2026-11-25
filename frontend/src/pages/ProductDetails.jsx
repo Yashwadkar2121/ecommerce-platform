@@ -17,6 +17,8 @@ import {
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { fetchProductById } from "../store/slices/productSlice";
 import { addToCart } from "../store/slices/cartSlice";
+import { optimizedImage, handleImageError } from "../utils/image";
+import ReviewSummary from "../components/ReviewSummary";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -134,8 +136,11 @@ const ProductDetails = () => {
 
   const { product, reviews } = currentProduct;
 
-  // Format price for display (convert from paisa/cent to dollars)
-  const formattedPrice = (product.price / 100).toFixed(2);
+  // Price is stored in dollars, e.g. 1234.5 -> "1,234.50"
+  const formattedPrice = Number(product.price).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-8">
@@ -185,11 +190,10 @@ const ProductDetails = () => {
                 className="bg-white rounded-3xl shadow-xl overflow-hidden"
               >
                 <img
-                  src={
-                    product.images?.[selectedImage] ||
-                    "/api/placeholder/600/600"
-                  }
+                  src={optimizedImage(product.images?.[selectedImage], 900)}
+                  onError={handleImageError}
                   alt={product.name}
+                  decoding="async"
                   className="w-full h-[500px] object-contain p-8"
                 />
               </motion.div>
@@ -234,8 +238,11 @@ const ProductDetails = () => {
                     }`}
                   >
                     <img
-                      src={image || "/api/placeholder/100/100"}
+                      src={optimizedImage(image, 160)}
+                      onError={handleImageError}
                       alt={`${product.name} ${index + 1}`}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -459,6 +466,9 @@ const ProductDetails = () => {
 
                 {activeTab === "reviews" && (
                   <div>
+                    {reviews?.items?.length >= 3 && (
+                      <ReviewSummary productId={product._id} />
+                    )}
                     {reviews?.items?.length > 0 ? (
                       <div className="space-y-6">
                         {reviews.items.map((review, index) => (

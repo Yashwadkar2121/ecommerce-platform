@@ -3,6 +3,7 @@ import { Star, Eye } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { addToCart } from "../../store/slices/cartSlice";
 import { Link } from "react-router-dom";
+import { optimizedImage, handleImageError } from "../../utils/image";
 
 const ProductCard = ({ product, index }) => {
   const dispatch = useDispatch();
@@ -41,9 +42,13 @@ const ProductCard = ({ product, index }) => {
       >
         <div className="relative overflow-hidden aspect-square">
           <img
-            src={product.images?.[0] || "/api/placeholder/400/400"}
+            src={optimizedImage(product.images?.[0], 480)}
+            onError={handleImageError}
             alt={product.name}
+            width="480"
+            height="480"
             loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {product.inventory === 0 && (
@@ -94,8 +99,11 @@ const ProductCard = ({ product, index }) => {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xl font-bold text-primary-600">
-                ${(product.price / 100).toFixed(2)}{" "}
-                {/* Adjust for paisa/cent */}
+                $
+                {Number(product.price).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </span>
             </div>
             <button

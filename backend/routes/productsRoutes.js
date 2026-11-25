@@ -12,6 +12,8 @@ const {
 } = require("../controllers/productController");
 const { authenticate } = require("../middleware/auth");
 const { cache } = require("../utils/redis");
+const { reviewSummary } = require("../controllers/aiController");
+const { aiGuard } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
@@ -23,6 +25,10 @@ router.get("/brands-by-category", cache(3600), getBrandsByCategory); // must be 
 router.get("/search", cache(60), searchProducts); // Cache for 1 minute (search results change frequently)
 router.get("/:productId", cache(300), getProductById);
 router.get("/:productId/related", cache(300), getRelatedProducts); // Cache for 5 minutes
+<<<<<<< HEAD
+=======
+router.get("/:productId/review-summary", aiGuard("summary"), reviewSummary); // AI summary (cached in Redis by the service)
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 
 // Protected routes for reviews
 router.post("/:productId/reviews", authenticate, addProductReview);

@@ -3,12 +3,15 @@ const redis = require("redis");
 
 const client = redis.createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
+  socket: { connectTimeout: 8000 },
 });
 
 client.on("error", (err) => console.log("❌ Redis Client Error", err));
 client.on("connect", () => console.log("✅ Redis Client Connected"));
 
+// Safe to call more than once (a warm serverless instance reuses the socket)
 const connectRedis = async () => {
+  if (client.isOpen) return;
   await client.connect();
 };
 

@@ -11,8 +11,13 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.0",
+<<<<<<< HEAD
     "@stripe/react-stripe-js": "^7.1.0",
     "@stripe/stripe-js": "^10.4.0",
+=======
+    "@stripe/react-stripe-js": "^7.0.1",
+    "@stripe/stripe-js": "^10.2.0",
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
     "@tailwindcss/vite": "^4.1.17",
     "axios": "^1.13.2",
     "framer-motion": "^12.23.24",

@@ -290,6 +290,10 @@ const clearCart = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
 // Replace the stored cart with the client's cart (used to keep the Redux cart
 // and the server cart in sync). Every item is validated against the database:
 // unknown/inactive products are dropped and quantities are clamped to stock.
@@ -306,7 +310,11 @@ const syncCart = async (req, res) => {
       if (!raw?.productId || !Number.isFinite(qty) || qty < 1) continue;
       merged.set(
         String(raw.productId),
+<<<<<<< HEAD
         (merged.get(String(raw.productId)) || 0) + qty,
+=======
+        (merged.get(String(raw.productId)) || 0) + qty
+>>>>>>> 116e83fe1beec9516c711ec65a99d1548553fe16
       );
     }
 

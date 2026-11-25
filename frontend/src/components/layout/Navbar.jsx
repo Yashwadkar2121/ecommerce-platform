@@ -420,7 +420,7 @@ const Navbar = () => {
   const [isCartAnimating, setIsCartAnimating] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const { mobileMenuOpen } = useAppSelector((state) => state.ui);
   const { filters } = useAppSelector((state) => state.products);
   const { itemCount, lastAddedItem } = useAppSelector((state) => state.cart);
@@ -677,6 +677,14 @@ const Navbar = () => {
 
               {isAuthenticated ? (
                 <>
+                  {user?.role === "admin" && (
+                    <Link
+                      to="/admin/products"
+                      className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600"
+                    >
+                      Admin
+                    </Link>
+                  )}
                   <Link
                     to="/profile"
                     className={`p-2.5 rounded-lg transition-all duration-200 border group hover:bg-primary-50 hover:border-primary-200 ${
